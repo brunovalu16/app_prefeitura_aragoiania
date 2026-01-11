@@ -1,0 +1,13 @@
+export const colors = {
+  purple: "#4B0F8A",
+  purpleDark: "#3A0B6C",
+  background: "#EEF2FF",
+  surface: "#FFFFFF",
+  text: "#0F172A",
+  black: "#10031a",
+  textMuted: "#64748B",
+  textMuted2: "#ececfc",
+  border: "#E2E8F0",
+  red: "#E11D48",
+  redDark: "#BE123C",
+};
