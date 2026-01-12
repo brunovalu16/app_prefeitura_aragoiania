@@ -8,3 +8,16 @@ export const Container = styled.View`
 export const Top = styled.View`
   padding: 34px 18px 10px 18px;
 `;
+
+/* ✅ área que limita quantos cards aparecem */
+export const ListArea = styled.View`
+  flex: 1;
+  margin-top: -5px;
+`;
+
+/* ✅ Scroll só da lista */
+export const ListScroll = styled.ScrollView.attrs({
+  contentContainerStyle: { paddingBottom: 15 },
+})`
+  flex: 1;
+`;

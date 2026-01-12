@@ -1,3 +1,4 @@
+
 import { ImageBackground } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { styled } from "styled-components/native";
@@ -63,7 +64,7 @@ export const SubText = styled.Text`
 export const Label = styled.Text`
   color: #fff;
   font-size: 13px;
-  margin-top: 15px;
+  margin-top: 7px;
   margin-bottom: 1px;
   opacity: 0.9;
 `;
@@ -81,7 +82,7 @@ export const RowLogin = styled.View`
   justify-content: center;
   align-items: center;
   margin-bottom: 18px;
-  margin-top: 68%;
+  margin-top: 60%;
 `;
 
 export const RowLoginText = styled.Text`

@@ -5,6 +5,12 @@ export const Container = styled.View`
   background: ${({ theme }) => theme.colors.background};
 `;
 
+export const Top = styled.View`
+  padding: 34px 18px 10px 18px;
+`;
+
+
+
 export const HeaderLogo = styled.Text`
   text-align: center;
   margin-top: 10px;

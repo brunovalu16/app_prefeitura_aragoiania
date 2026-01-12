@@ -3,7 +3,7 @@ import { styled } from "styled-components/native";
 export const Card = styled.TouchableOpacity`
   background-color: ${({ theme }) => theme.colors.purple};
   border-radius: 18px;
-  height: 350px;
+  height: 290px;
   min-width: 280;
   padding: 20px;
   justify-content: space-between;
@@ -20,7 +20,7 @@ export const Logo = styled.Image.attrs({
 })`
   width: 140px;
   height: 140px;
-  margin-bottom: -50
+  margin-bottom: -25
 `;
 
 export const Title = styled.Text`
@@ -30,5 +30,5 @@ export const Title = styled.Text`
   text-transform: uppercase;
   line-height: 25px;
   text-align: center;
-  padding-bottom: 50;
+  padding-bottom: 30;
 `;

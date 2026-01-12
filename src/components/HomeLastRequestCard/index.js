@@ -4,7 +4,7 @@ import { CardRow, SmallCard, SmallIconLeft, SmallInfo, SmallSub, SmallTitle } fr
 
 export default function HomeLastRequestCard({
   title = "MINHAS SOLICITAÇÕES",
-  subtitle = "ÁREA DA SAÚDE",
+  subtitle = "ILUMINAÇÃO PÚBLICA",
   onPress,
   onMenuPress,
 }) {

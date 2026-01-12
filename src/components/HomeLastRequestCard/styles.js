@@ -3,7 +3,7 @@ import { styled } from "styled-components/native";
 
 export const CardRow = styled.View`
   padding: 0 18px;
-  margin-top: 18px;
+  margin-top: 10px;
 `;
 
 export const SmallCard = styled.TouchableOpacity`

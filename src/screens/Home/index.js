@@ -3,15 +3,16 @@ import HomeBigCarousel from "../../components/HomeBigCarousel";
 import HomeGreeting from "../../components/HomeGreeting";
 import HomeLastRequestCard from "../../components/HomeLastRequestCard";
 import HomeShortcuts from "../../components/HomeShortcuts";
-import { Container, Top } from "./styles";
+import { Container, ListArea, ListScroll, Top } from "./styles";
 
 export default function Home({ navigation }) {
   return (
     <Container>
       <SafeAreaView edges={["top"]}>
         <Top>
-          <HomeGreeting name="Bruno Valú" 
-          onLogout={() => {
+          <HomeGreeting
+            name="Bruno Valú"
+            onLogout={() => {
               navigation.reset({
                 index: 0,
                 routes: [{ name: "Login" }],
@@ -19,29 +20,21 @@ export default function Home({ navigation }) {
             }}
           />
 
-          <HomeShortcuts
-            initialActiveLabel="SERVIÇOS"
-            onChange={(label) => {
-              // aqui você decide o que fazer ao trocar o atalho
-            }}
-          />
+          <HomeShortcuts initialActiveLabel="SERVIÇOS" />
         </Top>
       </SafeAreaView>
 
       <HomeBigCarousel navigation={navigation} />
 
-      <HomeLastRequestCard
-        title="MINHAS SOLICITAÇÕES"
-        subtitle="ÁREA DA SAÚDE"
-        onPress={() => {
-          // abre a lista de solicitações (depois você define a rota)
-        }}
-        onMenuPress={() => {
-          // abre menu/ações (depois você define)
-        }}
-      />
-
-
+      {/* ✅ cards */}
+      <ListArea>
+        <ListScroll showsVerticalScrollIndicator={false}>
+          <HomeLastRequestCard title="MINHAS SOLICITAÇÕES" subtitle="ILUMINAÇÃO PÚBLICA" onPress={() => {}} onMenuPress={() => {}} />
+          <HomeLastRequestCard title="MINHAS SOLICITAÇÕES" subtitle="ÁREA DA SAÚDE" onPress={() => {}} onMenuPress={() => {}} />
+          <HomeLastRequestCard title="MINHAS SOLICITAÇÕES" subtitle="PODA DE ÁRVORES" onPress={() => {}} onMenuPress={() => {}} />
+          <HomeLastRequestCard title="MINHAS SOLICITAÇÕES" subtitle="TAPA BURACOS" onPress={() => {}} onMenuPress={() => {}} />
+        </ListScroll>
+      </ListArea>
     </Container>
   );
 }

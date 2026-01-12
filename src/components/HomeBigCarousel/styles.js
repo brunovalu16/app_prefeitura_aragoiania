@@ -1,7 +1,7 @@
 import { styled } from "styled-components/native";
 
 export const BigCarousel = styled.View`
-  margin-top: 16px;
+  margin-top: 8px;
   margin-bottom: 10;
 `;
 

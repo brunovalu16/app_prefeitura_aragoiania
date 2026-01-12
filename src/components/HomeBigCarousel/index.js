@@ -63,7 +63,7 @@ export default function HomeBigCarousel({ navigation }) {
         )}
       />
 
-      {/* 🔵 BOLINHAS — AGORA DENTRO DO CONTAINER */}
+      {/* 🔵 BOLINHAS */}
       <DotsRow>
         {bigCards.map((_, index) => (
           <Dot key={index} active={index === activeIndex} />

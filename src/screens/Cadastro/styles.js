@@ -93,7 +93,7 @@ export const SpacerLine = styled.View`
 `;
 
 export const SubmitArea = styled.View`
-  margin-top: 34px;
+  margin-top: 28px;
   align-items: center;
 `;
 
