@@ -9,17 +9,9 @@ export const Top = styled.View`
   padding: 34px 18px 10px 18px;
 `;
 
-
-
-export const HeaderLogo = styled.Text`
-  text-align: center;
-  margin-top: 10px;
-  color: ${({ theme }) => theme.colors.purple};
-  font-weight: 800;
-`;
-
-export const Banner = styled.View`
-  margin: 18px 18px 10px 18px;
+/* ✅ Caixa do dropdown (substitui Banner) */
+export const SelectBox = styled.TouchableOpacity`
+  margin: 18px 18px 0 18px;
   height: 36px;
   border-radius: 6px;
   background: ${({ theme }) => theme.colors.purple};
@@ -28,29 +20,35 @@ export const Banner = styled.View`
   padding: 0 12px;
 `;
 
-export const BannerText = styled.Text`
-  color: #fff;
+export const SelectText = styled.Text`
+  margin-left: 10px;
   font-size: 11px;
   font-weight: 700;
+  color: ${({ theme }) => theme.colors.white ?? "#fff"};
+  flex: 1;
+`;
+
+export const SelectIconArea = styled.View`
   margin-left: 10px;
 `;
 
-export const Card = styled.View`
-  margin: 0 18px;
-  border-radius: 14px;
-  background: #fff;
-  padding: 14px;
+/* ✅ Lista que abre embaixo */
+export const Dropdown = styled.View`
+  margin: 6px 18px 0 18px;
+  border-radius: 12px;
+  background: ${({ theme }) => theme.colors.white ?? "#fff"};
+  padding: 8px 12px;
 `;
 
-export const Item = styled.TouchableOpacity`
+export const Option = styled.TouchableOpacity`
   flex-direction: row;
   align-items: center;
   padding: 10px 0;
 `;
 
-export const ItemText = styled.Text`
+export const OptionText = styled.Text`
   margin-left: 10px;
-  color: ${({ theme, red }) => (red ? theme.colors.red : theme.colors.textMuted)};
-  font-weight: ${({ red }) => (red ? 800 : 700)};
   font-size: 12px;
+  font-weight: 800;
+  color: ${({ theme }) => theme.colors.textMuted};
 `;

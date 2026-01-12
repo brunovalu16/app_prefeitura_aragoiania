@@ -1,14 +1,36 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Modal } from "react-native";
-import { Box, Close, Map, Overlay, SearchInput, SearchRow, Title, TopRow } from "./styles";
+import PrimaryButtonareas from "../PrimaryButtonareas";
+import {
+  Box,
+  Close,
+  Footer,
+  Map,
+  Overlay,
+  SearchInput,
+  SearchRow,
+  Title,
+  TopRow,
+} from "./styles";
 
-export default function MapModal({ visible, onClose }) {
+export default function MapModal({ visible, onClose, onSelectLocation }) {
+  function handleConfirm() {
+    // ✅ MOCK: depois troca pelo ponto real selecionado no mapa
+    onSelectLocation?.({
+      latitude: -16.6869,
+      longitude: -49.2648,
+    });
+
+    onClose?.();
+  }
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Overlay>
         <Box>
           <TopRow>
             <Title>Endereço não atendido pela Prefeitura de Aragoiânia</Title>
+
             <Close onPress={onClose}>
               <Ionicons name="close" size={18} color="#fff" />
             </Close>
@@ -20,6 +42,10 @@ export default function MapModal({ visible, onClose }) {
           </SearchRow>
 
           <Map />
+
+          <Footer>
+            <PrimaryButtonareas title="CONFIRMAR LOCALIZAÇÃO" onPress={handleConfirm} />
+          </Footer>
         </Box>
       </Overlay>
     </Modal>

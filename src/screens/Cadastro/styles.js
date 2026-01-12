@@ -111,3 +111,25 @@ export const SubmitText = styled.Text`
   font-weight: 800;
   font-size: 12px;
 `;
+
+export const PasswordRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  border-bottom-width: 1px;
+  border-bottom-color: rgba(255, 255, 255, 0.65);
+`;
+
+export const PasswordInput = styled.TextInput`
+  flex: 1;
+  height: 32px;
+  color: #fff;
+  padding-bottom: 6px;
+`;
+
+export const EyeBtn = styled.TouchableOpacity`
+  width: 36px;
+  height: 32px;
+  align-items: flex-end;
+  justify-content: center;
+`;
+

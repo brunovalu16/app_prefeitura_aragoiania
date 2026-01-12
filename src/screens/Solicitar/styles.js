@@ -34,10 +34,11 @@ export const Card = styled.View`
   border-radius: 14px;
   background: #fff;
   padding: 14px;
+  margin-top: 10;
 `;
 
 export const AreaTitle = styled.Text`
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 800;
   color: ${({ theme }) => theme.colors.textMuted};
   margin-left: 10px;
@@ -49,23 +50,32 @@ export const Row = styled.View`
 `;
 
 export const FieldLabel = styled.Text`
-  font-size: 10px;
+  font-size: 15px;
   color: ${({ theme }) => theme.colors.textMuted};
   margin-top: 12px;
   margin-bottom: 6px;
 `;
 
-export const Box = styled.View`
-  height: 68px;
+export const DescriptionInput = styled.TextInput.attrs({
+  multiline: true,
+  textAlignVertical: "top", // 👈 aqui é o lugar certo
+})`
+  height: 150px;
   border-radius: 10px;
   background: #F3F4F6;
+  padding: 12px;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 15px;
 `;
 
+
+
 export const Helper = styled.Text`
-  font-size: 9px;
+  font-size: 15px;
   color: ${({ theme }) => theme.colors.textMuted};
   margin-top: 6px;
-  line-height: 12px;
+  line-height: 16px;
+  margin-bottom: 15;
 `;
 
 export const ActionRow = styled.View`
@@ -98,8 +108,58 @@ export const CepRow = styled.View`
 export const CepInput = styled.TextInput`
   height: 34px;
   border-radius: 8px;
-  background: ${({ theme }) => theme.colors.red};
+  background: ${({ theme }) => theme.colors.textMuted2};
   padding: 0 12px;
-  color: #fff;
+  color: #3A0B6C;
   font-weight: 800;
+`;
+
+export const CounterRow = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 6px;
+`;
+
+export const CounterText = styled.Text`
+  font-size: 12px;
+  color: ${({ theme, error }) => (error ? theme.colors.red : theme.colors.textMuted)};
+`;
+
+export const PreviewGrid = styled.View`
+  margin-top: 10px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px;
+`;
+
+export const PreviewItem = styled.View`
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+`;
+
+export const PreviewImage = styled.Image`
+  width: 100%;
+  height: 100%;
+`;
+
+export const RemoveBadge = styled.TouchableOpacity`
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.55);
+  align-items: center;
+  justify-content: center;
+`;
+
+export const RemoveBadgeText = styled.Text`
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  margin-top: -2px;
 `;

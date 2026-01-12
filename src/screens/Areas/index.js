@@ -1,143 +1,86 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "styled-components/native";
 
-import HomeGreeting from "../../components/HomeGreeting";
-import HomeShortcuts from "../../components/HomeShortcuts";
 
 import {
-  Banner,
-  BannerText,
-  Card,
   Container,
-  Item,
-  ItemText,
-  ModalBackdrop,
-  ModalCard,
-  ModalClose,
-  ModalHeader,
-  ModalItem,
-  ModalItemText,
-  ModalList,
-  ModalTitle,
-  Top,
+  Dropdown,
+  Option,
+  OptionText,
+  SelectBox,
+  SelectIconArea,
+  SelectText
 } from "./styles";
 
 export default function Areas({ navigation }) {
   const theme = useTheme();
 
   const areas = useMemo(
-    () => [
-      { id: "iluminacao", label: "ILUMINAÇÃO PÚBLICA", goTo: "Solicitar" },
-      { id: "saude", label: "SAÚDE", goTo: "Solicitar" },
-      { id: "defesa", label: "DEFESA CIVIL", goTo: "Solicitar" },
-    ],
-    []
-  );
+  () => [
+    { id: "iluminacao", label: "ILUMINAÇÃO PÚBLICA", goTo: "Solicitar" },
+    { id: "saude", label: "SAÚDE" }, // sem destino por enquanto
+    { id: "defesa", label: "DEFESA CIVIL" }, // sem destino por enquanto
+  ],
+  []
+);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedArea, setSelectedArea] = useState(null);
 
-  function handleSelect(area) {
-    setSelectedArea(area);
-    setModalOpen(false);
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
 
-    // opcional: já navega ao escolher
-    navigation.navigate(area.goTo, { areaId: area.id, areaLabel: area.label });
+function handleSelect(item) {
+  setSelected(item);
+  setOpen(false);
+
+  if (item.goTo) {
+    navigation.navigate(item.goTo, {
+      areaId: item.id,
+      areaLabel: item.label,
+    });
   }
+}
+
+
 
   return (
     <Container>
-      <SafeAreaView edges={["top"]}>
-        <Top>
-          <HomeGreeting
-            name="Bruno Valú"
-            onLogout={() => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "Login" }],
-              });
-            }}
-          />
-          <HomeShortcuts initialActiveLabel="SERVIÇOS" />
-        </Top>
-      </SafeAreaView>
+      
 
-      {/* Banner clicável */}
-      <Banner activeOpacity={0.9} onPress={() => setModalOpen(true)}>
+      {/* ✅ DROPDOWN */}
+      <SelectBox activeOpacity={0.9} onPress={() => setOpen((v) => !v)}>
         <Ionicons
           name="play"
           size={16}
           color={theme.colors.white ?? "#fff"}
         />
-        <BannerText>
-          {selectedArea?.label ?? "SELECIONE A ÁREA QUE DESEJA ATENDIMENTO"}
-        </BannerText>
-        <Ionicons
-          name={modalOpen ? "chevron-up" : "chevron-down"}
-          size={18}
-          color={theme.colors.white ?? "#fff"}
-          style={{ marginLeft: "auto" }}
-        />
-      </Banner>
 
-      <Card>
-        <Item onPress={() => navigation.navigate("Solicitar")}>
+        <SelectText numberOfLines={1}>
+          {selected?.label ?? "SELECIONE A ÁREA QUE DESEJA ATENDIMENTO"}
+        </SelectText>
+
+        <SelectIconArea>
           <Ionicons
-            name="document-text-outline"
+            name={open ? "chevron-up" : "chevron-down"}
             size={18}
-            color={theme.colors.purple}
+            color={theme.colors.white ?? "#fff"}
           />
-          <ItemText red>ILUMINAÇÃO PÚBLICA</ItemText>
-        </Item>
+        </SelectIconArea>
+      </SelectBox>
 
-        <Item onPress={() => {}}>
-          <Ionicons
-            name="document-text-outline"
-            size={18}
-            color={theme.colors.purple}
-          />
-          <ItemText>SAÚDE</ItemText>
-        </Item>
-
-        <Item onPress={() => {}}>
-          <Ionicons
-            name="document-text-outline"
-            size={18}
-            color={theme.colors.purple}
-          />
-          <ItemText>DEFESA CIVIL</ItemText>
-        </Item>
-      </Card>
-
-      {/* Modal de opções */}
-      {modalOpen && (
-        <ModalBackdrop activeOpacity={1} onPress={() => setModalOpen(false)}>
-          <ModalCard activeOpacity={1}>
-            <ModalHeader>
-              <ModalTitle>Escolha uma área</ModalTitle>
-              <ModalClose activeOpacity={0.9} onPress={() => setModalOpen(false)}>
-                <Ionicons name="close" size={18} color={theme.colors.textMuted} />
-              </ModalClose>
-            </ModalHeader>
-
-            <ModalList
-              data={areas}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ModalItem activeOpacity={0.9} onPress={() => handleSelect(item)}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={18}
-                    color={theme.colors.purple}
-                  />
-                  <ModalItemText>{item.label}</ModalItemText>
-                </ModalItem>
-              )}
-            />
-          </ModalCard>
-        </ModalBackdrop>
+      {open && (
+        <Dropdown>
+          {areas.map((item) => (
+            <Option key={item.id} activeOpacity={0.9} onPress={() => handleSelect(item)}>
+              <Ionicons
+                name="document-text-outline"
+                size={18}
+                color={theme.colors.purple}
+              />
+              <OptionText>{item.label}</OptionText>
+            </Option>
+          ))}
+        </Dropdown>
       )}
     </Container>
   );

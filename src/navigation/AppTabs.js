@@ -7,9 +7,10 @@ import Home from "../screens/Home";
 
 const Tab = createBottomTabNavigator();
 
-function PlaceholderScreen() {
-  return <Home />;
+function PlaceholderScreen(props) {
+  return <Home {...props} />; // ✅ passa navigation/route
 }
+
 
 export default function AppTabs() {
   return (

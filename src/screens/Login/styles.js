@@ -82,7 +82,7 @@ export const RowLogin = styled.View`
   justify-content: center;
   align-items: center;
   margin-bottom: 18px;
-  margin-top: 60%;
+  margin-top: 68%;
 `;
 
 export const RowLoginText = styled.Text`

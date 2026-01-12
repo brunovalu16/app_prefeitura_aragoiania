@@ -23,14 +23,14 @@ export const TopRow = styled.View`
 
 export const Title = styled.Text`
   color: #fff;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 600;
   width: 230px;
 `;
 
 export const Close = styled.TouchableOpacity`
-  width: 32px;
-  height: 32px;
+  width: 50px;
+  height: 50px;
   align-items: center;
   justify-content: center;
 `;
@@ -57,3 +57,9 @@ export const Map = styled.View`
   background: #ffffff;
   overflow: hidden;
 `;
+
+export const Footer = styled.View`
+  margin-top: 12px;
+`;
+
+
