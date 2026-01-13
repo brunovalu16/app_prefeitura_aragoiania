@@ -10,4 +10,5 @@ export const colors = {
   border: "#E2E8F0",
   red: "#E11D48",
   redDark: "#BE123C",
+  cinza: "#777777",
 };
