@@ -19,7 +19,7 @@ import {
   Container,
   EyeBtn,
   Form,
-  FormLock, // ✅ adicione no styles
+  FormLock,
   InputBox,
   InputLine,
   Label,
@@ -53,8 +53,16 @@ export default function Cadastro({ navigation }) {
   const [popupTitle, setPopupTitle] = useState("");
   const [popupMessage, setPopupMessage] = useState("");
 
-  // 0º SUS
+  // 0º SUS (agora com 5 dígitos)
   const [sus, setSus] = useState("");
+  const [susBloqueado, setSusBloqueado] = useState(false);
+
+  // ✅ padrão atual para liberar
+  const SUS_PADRAO_LIBERADO = "00000";
+  const SUS_TAMANHO = 5;
+
+  // ✅ Libera o formulário só quando SUS tiver 5 dígitos e for igual ao padrão
+  const susLiberado = sus.length === SUS_TAMANHO && !susBloqueado && sus === SUS_PADRAO_LIBERADO;
 
   // 1º Nome
   const [nome, setNome] = useState("");
@@ -81,21 +89,6 @@ export default function Cadastro({ navigation }) {
   const [showSenha, setShowSenha] = useState(false);
   const [showConfirmarSenha, setShowConfirmarSenha] = useState(false);
 
-  const [susBloqueado, setSusBloqueado] = useState(false);
-
-  // ✅ Libera o formulário só quando SUS estiver preenchido e NÃO bloqueado
-  const susLiberado = sus.length >= 10 && !susBloqueado;
-
-  // ✅ Prefixos permitidos
-  const SUS_PREFIXOS_PERMITIDOS = ["898", "7001", "705"]; // <-- troque pelos seus
-
-  function isSusPermitido(susSomenteNumeros) {
-    if (!susSomenteNumeros) return false;
-    return SUS_PREFIXOS_PERMITIDOS.some((prefixo) =>
-      susSomenteNumeros.startsWith(prefixo)
-    );
-  }
-
   // ✅ Popup
   function showPopup(title, message) {
     setPopupTitle(title);
@@ -106,22 +99,22 @@ export default function Cadastro({ navigation }) {
     setPopupVisible(false);
   }
 
-  // ✅ Validação SUS (corrigido: NÃO cria susLiberado dentro daqui)
+  // ✅ Validação SUS: só valida quando tiver 5 dígitos
   function validarSusOuBloquear(susValue) {
     const susLimpo = (susValue || "").replace(/\D/g, "");
 
-    if (susLimpo.length < 10) {
+    if (susLimpo.length < SUS_TAMANHO) {
       setSusBloqueado(false);
       return;
     }
 
-    const permitido = isSusPermitido(susLimpo);
+    const permitido = susLimpo === SUS_PADRAO_LIBERADO;
 
     if (!permitido) {
       setSusBloqueado(true);
       showPopup(
         "Acesso bloqueado",
-        "Usuário não tem permissão para acessar o SUS da região de Aragoiania."
+        `Usuário não tem permissão para acessar o SUS na região de Aragoiania.`
       );
     } else {
       setSusBloqueado(false);
@@ -171,7 +164,7 @@ export default function Cadastro({ navigation }) {
   }
 
   async function abrirCamera(setter) {
-    if (!susLiberado) return; // 🔒 só depois do SUS
+    if (!susLiberado) return;
     if (isPicking) return;
     setIsPicking(true);
 
@@ -182,7 +175,7 @@ export default function Cadastro({ navigation }) {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.7,
-        allowsEditing: false, // ✅ evita travar no crop
+        allowsEditing: false,
       });
 
       if (!result.canceled) {
@@ -196,7 +189,7 @@ export default function Cadastro({ navigation }) {
   }
 
   async function abrirGaleria(setter) {
-    if (!susLiberado) return; // 🔒 só depois do SUS
+    if (!susLiberado) return;
     if (isPicking) return;
     setIsPicking(true);
 
@@ -239,16 +232,8 @@ export default function Cadastro({ navigation }) {
 
   // ✅ Cadastrar
   function handleCadastrar() {
-    if (susBloqueado) {
-      showPopup(
-        "Acesso bloqueado",
-        "Usuário não tem permissão para acessar o SUS da região de Aragoiania."
-      );
-      return;
-    }
-
-    if (!sus || sus.length < 10) {
-      Alert.alert("Campo obrigatório", "Informe um número do SUS válido.");
+    if (!susLiberado) {
+      Alert.alert("SUS", `Digite o SUS correto (${SUS_PADRAO_LIBERADO}) para liberar.`);
       return;
     }
 
@@ -259,25 +244,14 @@ export default function Cadastro({ navigation }) {
     if (!endereco) return Alert.alert("Endereço", "Informe seu endereço.");
     if (!tituloEleitor) return Alert.alert("Título de eleitor", "Informe o título de eleitor.");
 
-    if (!fotoCpfRg) {
-      Alert.alert("Documento obrigatório", "Envie a foto do CPF ou RG.");
-      return;
-    }
+    if (!fotoCpfRg) return Alert.alert("Documento obrigatório", "Envie a foto do CPF ou RG.");
+    if (!fotoTitulo1 || !fotoTitulo2)
+      return Alert.alert("Documento obrigatório", "Envie as duas fotos do Título de Eleitor.");
 
-    if (!fotoTitulo1 || !fotoTitulo2) {
-      Alert.alert("Documento obrigatório", "Envie as duas fotos do Título de Eleitor.");
-      return;
-    }
+    if (senha.length < 6)
+      return Alert.alert("Senha inválida", "A senha deve conter no mínimo 6 caracteres.");
 
-    if (senha.length < 6) {
-      Alert.alert("Senha inválida", "A senha deve conter no mínimo 6 caracteres.");
-      return;
-    }
-
-    if (senha !== confirmarSenha) {
-      Alert.alert("Senha", "As senhas não conferem.");
-      return;
-    }
+    if (senha !== confirmarSenha) return Alert.alert("Senha", "As senhas não conferem.");
 
     navigation.navigate("Login");
   }
@@ -333,9 +307,15 @@ export default function Cadastro({ navigation }) {
             ref={susRef}
             value={sus}
             onChangeText={(v) => {
-              const limpo = v.replace(/\D/g, "").slice(0, 15);
+              const limpo = v.replace(/\D/g, "").slice(0, SUS_TAMANHO); // ✅ máximo 5
               setSus(limpo);
-              validarSusOuBloquear(limpo);
+
+              // ✅ só valida quando completar 5 dígitos
+              if (limpo.length === SUS_TAMANHO) {
+                validarSusOuBloquear(limpo);
+              } else {
+                setSusBloqueado(false);
+              }
             }}
             onBlur={() => validarSusOuBloquear(sus)}
             keyboardType="numeric"
@@ -343,16 +323,15 @@ export default function Cadastro({ navigation }) {
             placeholderTextColor={theme.colors.surface}
             selectTextOnFocus={false}
             onPressIn={handleSusPressIn}
+            maxLength={SUS_TAMANHO}
           />
 
-          {/* ✅ TEXTO DE AJUDA */}
           {!susLiberado && (
             <SectionHint style={{ marginTop: 10 }}>
-              Preencha o SUS para liberar o cadastro
+              Digite o número do SUS para liberar o cadastro:
             </SectionHint>
           )}
 
-          {/* 🔒 TRAVA TODO O RESTO ENQUANTO SUS NÃO ESTIVER LIBERADO */}
           <FormLock
             pointerEvents={susLiberado ? "auto" : "none"}
             style={{ opacity: susLiberado ? 1 : 0.45 }}
@@ -370,7 +349,7 @@ export default function Cadastro({ navigation }) {
               editable={susLiberado}
             />
 
-            {/* 3º CPF e RG lado a lado */}
+            {/* 3º CPF e RG */}
             <Row2>
               <Col>
                 <Label>CPF</Label>
@@ -393,7 +372,7 @@ export default function Cadastro({ navigation }) {
               </Col>
             </Row2>
 
-            {/* 4º Botões CPF/RG */}
+            {/* 4º Fotos CPF/RG */}
             <SectionHint>Fotos do CPF e RG</SectionHint>
             <PhotoActionsRow>
               <PhotoActionBtn
@@ -515,8 +494,8 @@ export default function Cadastro({ navigation }) {
               <SubmitBtn
                 onPress={handleCadastrar}
                 activeOpacity={0.9}
-                disabled={!susLiberado || susBloqueado}
-                style={{ opacity: !susLiberado || susBloqueado ? 0.5 : 1 }}
+                disabled={!susLiberado}
+                style={{ opacity: !susLiberado ? 0.5 : 1 }}
               >
                 <SubmitText>CADASTRAR</SubmitText>
               </SubmitBtn>

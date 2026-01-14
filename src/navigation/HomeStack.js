@@ -5,6 +5,7 @@ import CepPreenchido from "../screens/CepPreenchido";
 import Home from "../screens/Home";
 import Replyiluminacao from "../screens/Replys/Replyiluminacao";
 import Solicitar from "../screens/Solicitar";
+import User from "../screens/User";
 
 const Stack = createNativeStackNavigator();
 
@@ -20,6 +21,7 @@ export default function HomeStack() {
       <Stack.Screen name="Solicitar" component={Solicitar} />
       <Stack.Screen name="CepPreenchido" component={CepPreenchido} />
       <Stack.Screen name="Replyiluminacao" component={Replyiluminacao} />
+      <Stack.Screen name="User" component={User} />
     </Stack.Navigator>
   );
 }

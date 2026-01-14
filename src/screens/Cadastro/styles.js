@@ -12,9 +12,14 @@ export const TopBack = styled.TouchableOpacity`
   width: 40px;
   height: 40px;
   border-radius: 20px;
+
   align-items: center;
   justify-content: center;
+
+  align-self: flex-end;   /* 👈 empurra para a direita */
 `;
+
+
 
 export const LogoArea = styled.View`
   align-items: center;

@@ -10,15 +10,17 @@ export default function HomeHeader() {
   return (
     <SafeAreaView edges={["top"]}>
       <Container>
-        <HomeGreeting
-          name="Bruno Valú"
-          onLogout={() => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: "Login" }],
-            });
-          }}
-        />
+       <HomeGreeting
+        name="Bruno Valú"
+        onBack={() => navigation.goBack()}
+        onLogout={() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        }}
+      />
+
 
         <HomeShortcuts initialActiveLabel="SERVIÇOS" />
       </Container>

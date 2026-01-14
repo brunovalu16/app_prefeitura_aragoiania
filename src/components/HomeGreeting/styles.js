@@ -3,6 +3,7 @@ import { styled } from "styled-components/native";
 export const LogoArea = styled.View`
   align-items: center;
   margin-bottom: 12px;
+  position: relative; /* 🔑 base para o botão absoluto */
 `;
 
 export const LogoImage = styled.Image.attrs({
@@ -11,6 +12,14 @@ export const LogoImage = styled.Image.attrs({
   width: 150px;
   height: 80px;
 `;
+
+export const BackButton = styled.TouchableOpacity`
+  position: absolute;
+  right: 0;
+  transform: translateY(-11px);
+  padding: 6px;
+`;
+
 
 export const GreetingRow = styled.View`
   flex-direction: row;
@@ -71,3 +80,9 @@ export const LogoutText = styled.Text`
   font-size: 12px;
   font-weight: 700;
 `;
+
+
+
+
+
+

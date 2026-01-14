@@ -1,7 +1,9 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Images } from "../../assets/images";
 import {
   Avatar,
   AvatarImage,
+  BackButton,
   GreetingLeft,
   GreetingRow,
   LogoArea,
@@ -16,21 +18,26 @@ import {
 export default function HomeGreeting({
   welcomeText = "Seja Bem-Vindo(a)",
   name,
-  avatar,     // 👈 foto do usuário
+  avatar,
   onLogout,
+  onBack, // 👈 nova prop
 }) {
   return (
     <>
       <LogoArea>
         <LogoImage source={Images.logo_colorida_aragoiania} />
+
+        {onBack && (
+          <BackButton onPress={onBack} activeOpacity={0.8}>
+            <Ionicons name="chevron-back-circle-outline" size={30} color="#777777" />
+          </BackButton>
+        )}
       </LogoArea>
 
       <GreetingRow>
         <GreetingLeft>
           <Avatar>
-            <AvatarImage
-              source={avatar ?? Images.avatar}
-            />
+            <AvatarImage source={avatar ?? Images.avatar} />
           </Avatar>
 
           <UserInfo>

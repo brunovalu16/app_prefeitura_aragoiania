@@ -1,21 +1,25 @@
+import { useNavigation } from "@react-navigation/native";
 import { useMemo, useState } from "react";
 import { FlatList } from "react-native";
+
 import ShortcutPill from "../ShortcutPill";
 import { ShortcutsRow } from "./styles";
 
 export default function HomeShortcuts({
-  initialActiveLabel = "SERVIÇOS",
+  initialActiveLabel = "CADASTRO",
   onChange,
   shortcuts: shortcutsProp,
 }) {
+  const navigation = useNavigation();
+
   const defaultShortcuts = useMemo(
     () => [
-      { id: "agenda", label: "MINHA AGENDA" },
-      { id: "debitos", label: "DÉBITOS" },
-      { id: "servicos", label: "SERVIÇOS" },
-      { id: "saude", label: "SAÚDE" },
-      { id: "iptu", label: "IPTU" },
-      { id: "iluminação", label: "ILUMINAÇÃO" },
+      { id: "cadastro", label: "CADASTRO" },
+      { id: "finaças", label: "FINANÇAS" },
+      { id: "diario", label: "DIÁRIO OFICIAL" },
+      { id: "empregos", label: "EMPREGOS E CURSOS SINE" },
+      { id: "saude", label: "NOTÍCIAS SAÚDE" },
+      { id: "eventos", label: "EVENTOS" },
     ],
     []
   );
@@ -24,9 +28,16 @@ export default function HomeShortcuts({
 
   const [activeShortcut, setActiveShortcut] = useState(initialActiveLabel);
 
-  function handlePress(label) {
-    setActiveShortcut(label);
-    if (onChange) onChange(label);
+  function handlePress(item) {
+    setActiveShortcut(item.label);
+
+    // ✅ Navegação interna (fixa) para o User
+    if (item.id === "cadastro" || item.label === "CADASTRO") {
+      navigation.navigate("User");
+    }
+
+    // ✅ continua disparando callback pra Home se você quiser usar depois
+    if (onChange) onChange(item.label);
   }
 
   return (
@@ -40,7 +51,7 @@ export default function HomeShortcuts({
           <ShortcutPill
             label={item.label}
             active={activeShortcut === item.label}
-            onPress={() => handlePress(item.label)}
+            onPress={() => handlePress(item)}
           />
         )}
       />
