@@ -1,8 +1,11 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getApp, getApps, initializeApp } from "firebase/app";
+import {
+  getAuth,
+  getReactNativePersistence,
+  initializeAuth,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-// Analytics NÃO usar no Expo
-// import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -14,7 +17,41 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+console.log("🔑 API KEY debug:", {
+  prefix: (process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "").slice(0, 8),
+  suffix: (process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "").slice(-6),
+  len: (process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "").length,
+});
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+console.log("🔥 FIREBASE CFG:", {
+  apiKey: firebaseConfig.apiKey ? "OK" : "MISSING",
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  appId: firebaseConfig.appId ? "OK" : "MISSING",
+});
+
+
+// ✅ DEBUG TEMPORÁRIO — pode apagar depois
+console.log(
+  "🔑 API KEY prefix:",
+  (process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "").slice(0, 6)
+);
+
+// ✅ evita reinicializar o app no Fast Refresh
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// ✅ evita auth/already-initialized
+let auth;
+try {
+  auth = getAuth(app); // se já existe, só pega
+} catch (_) {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+}
+
+const db = getFirestore(app);
+
+export { app, auth, db };
+

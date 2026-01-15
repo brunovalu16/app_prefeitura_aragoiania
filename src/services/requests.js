@@ -1,16 +1,16 @@
 import {
-    collection,
-    doc,
-    limit,
-    onSnapshot,
-    orderBy,
-    query,
-    runTransaction,
-    serverTimestamp,
-    where,
+  collection,
+  doc,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp,
+  where,
 } from "firebase/firestore";
 
-import { db } from "./firebase"; // <- seu firebase já conectado
+import { db } from "./firebase";
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -29,10 +29,14 @@ export async function createRequest({
   images = [],
   location = null,
 }) {
+  if (!userId) throw new Error("createRequest: userId obrigatório");
+  if (!areaId) throw new Error("createRequest: areaId obrigatório");
+  if (!areaLabel) throw new Error("createRequest: areaLabel obrigatório");
+
   const counterId = `${userId}_${areaId}`;
   const counterRef = doc(db, "counters", counterId);
   const reqCol = collection(db, "requests");
-  const newReqRef = doc(reqCol); // gera ID antecipado
+  const newReqRef = doc(reqCol);
 
   const result = await runTransaction(db, async (tx) => {
     const counterSnap = await tx.get(counterRef);
@@ -54,8 +58,6 @@ export async function createRequest({
       descricao: (descricao || "").trim(),
       enderecoPoste: (enderecoPoste || "").trim(),
       numeroPoste: (numeroPoste || "").trim(),
-      // se você ainda não subiu pro storage, isso aqui vai ser uri local (não recomendo).
-      // o ideal é virar array de URLs do storage.
       images: Array.isArray(images) ? images : [],
       location: location || null,
       status: "execucao",
@@ -69,35 +71,68 @@ export async function createRequest({
 }
 
 /**
- * Assina (realtime) solicitações do usuário por área
+ * Assina (realtime) solicitações do usuário.
+ * - Se passar areaId -> filtra por área
+ * - Se NÃO passar areaId -> traz todas as solicitações do usuário
  */
-export function subscribeRequests({
-  userId,
-  areaId,
-  onChange,
-  max = 50,
-}) {
-  const q = query(
-    collection(db, "requests"),
-    where("userId", "==", userId),
-    where("areaId", "==", areaId),
-    orderBy("createdAt", "desc"),
-    limit(max)
-  );
+export function subscribeRequests({ userId, areaId, onChange, max = 50 }) {
+  // ✅ evita Firestore quebrar com where(undefined)
+  if (!userId) {
+    console.log("⚠️ subscribeRequests: userId vazio", userId);
+    onChange?.([]);
+    return () => {};
+  }
 
-  return onSnapshot(q, (snap) => {
-    const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    onChange?.(data);
-  });
+  const ref = collection(db, "requests");
+
+  // ✅ constraints base
+  const constraints = [
+    where("userId", "==", userId),
+    orderBy("createdAt", "desc"),
+    limit(max),
+  ];
+
+  // ✅ filtra por areaId só se existir
+  if (areaId) {
+    constraints.unshift(where("areaId", "==", areaId));
+  }
+
+  const q = query(ref, ...constraints);
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      onChange?.(data);
+    },
+    (err) => {
+      console.log("❌ subscribeRequests onSnapshot:", err?.code, err?.message);
+      onChange?.([]);
+    }
+  );
 }
 
 /**
  * Assina (realtime) uma solicitação por id
  */
 export function subscribeRequestById({ requestId, onChange }) {
+  if (!requestId) {
+    console.log("⚠️ subscribeRequestById: requestId vazio", requestId);
+    onChange?.(null);
+    return () => {};
+  }
+
   const refDoc = doc(db, "requests", requestId);
-  return onSnapshot(refDoc, (snap) => {
-    if (!snap.exists()) return onChange?.(null);
-    onChange?.({ id: snap.id, ...snap.data() });
-  });
+
+  return onSnapshot(
+    refDoc,
+    (snap) => {
+      if (!snap.exists()) return onChange?.(null);
+      onChange?.({ id: snap.id, ...snap.data() });
+    },
+    (err) => {
+      console.log("❌ subscribeRequestById onSnapshot:", err?.code, err?.message);
+      onChange?.(null);
+    }
+  );
 }

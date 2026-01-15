@@ -14,9 +14,11 @@ import { useTheme } from "styled-components/native";
 import MapModal from "../../components/MapModal";
 import PrimaryButtonenviarareas from "../../components/PrimaryButtonenviarareas";
 import PrimaryButtonlocalizacao from "../../components/PrimaryButtonlocalizacao";
-import { createRequest } from "../../services/requests";
-import { getUserId } from "../../services/userId";
 
+import { createRequest } from "../../services/requests";
+import { getAuthUserId } from "../../services/userId";
+
+import AppAlert from "../../components/AppAlert";
 
 
 import {
@@ -46,6 +48,10 @@ import {
 
 export default function Solicitar({ navigation }) {
   const theme = useTheme();
+
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successRequestId, setSuccessRequestId] = useState(null);
+
 
   const [modal, setModal] = useState(false);
   const [enderecoPoste, setEnderecoPoste] = useState("");
@@ -182,7 +188,7 @@ async function handleSend() {
       return;
     }
 
-    const userId = await getUserId();
+    const userId = getAuthUserId(); // ✅ uid real
 
     const { requestId } = await createRequest({
       userId,
@@ -195,24 +201,14 @@ async function handleSend() {
       location,
     });
 
-    Alert.alert(
-      "Sucesso",
-      "Solicitação enviada com sucesso!",
-      [
-        {
-          text: "OK",
-          onPress: () =>
-            navigation.navigate("Replyiluminacao", { requestId }),
-        },
-      ],
-      { cancelable: false }
-    );
+    // ✅ abre popup gráfico de sucesso
+    setSuccessRequestId(requestId);
+    setSuccessOpen(true);
   } catch (_err) {
+    console.log("❌ handleSend:", _err?.code, _err?.message);
     Alert.alert("Erro", "Não foi possível enviar sua solicitação.");
   }
 }
-
-
 
 
 
@@ -339,6 +335,8 @@ async function handleSend() {
             />
           </Card>
 
+          
+
           <MapModal
             visible={modal}
             onClose={() => setModal(false)}
@@ -346,6 +344,24 @@ async function handleSend() {
           />
         </Container>
       </ScrollView>
+
+      {/* ✅ POPUP DE SUCESSO */}
+      <AppAlert
+        visible={successOpen}
+        variant="success"
+        title="Solicitação enviada"
+        message="Sua solicitação foi registrada com sucesso."
+        onClose={() => {
+          setSuccessOpen(false);
+
+          if (successRequestId) {
+            navigation.navigate("Replyiluminacao", {
+              requestId: successRequestId,
+            });
+          }
+        }}
+      />
+
     </KeyboardAvoidingView>
   </TouchableWithoutFeedback>
 );
