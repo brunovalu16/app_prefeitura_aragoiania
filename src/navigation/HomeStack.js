@@ -2,10 +2,14 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeHeader from "../components/HomeHeader";
 import Areas from "../screens/Areas";
 import CepPreenchido from "../screens/CepPreenchido";
+import DocumentCameraScreen from "../screens/DocumentCameraScreen";
 import Home from "../screens/Home";
+import Recebeiluminacao from "../screens/Recebeiluminacao";
 import Replyiluminacao from "../screens/Replys/Replyiluminacao";
 import Solicitar from "../screens/Solicitar";
 import User from "../screens/User";
+
+
 
 const Stack = createNativeStackNavigator();
 
@@ -22,6 +26,8 @@ export default function HomeStack() {
       <Stack.Screen name="CepPreenchido" component={CepPreenchido} />
       <Stack.Screen name="Replyiluminacao" component={Replyiluminacao} />
       <Stack.Screen name="User" component={User} />
+      <Stack.Screen name="DocumentCamera" component={DocumentCameraScreen} />
+      <Stack.Screen name="Recebeiluminacao" component={Recebeiluminacao} />
     </Stack.Navigator>
   );
 }

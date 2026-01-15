@@ -15,7 +15,7 @@ export default function HomeShortcuts({
   const defaultShortcuts = useMemo(
     () => [
       { id: "cadastro", label: "CADASTRO" },
-      { id: "finaças", label: "FINANÇAS" },
+      { id: "solicitacoes", label: "SOLICITAÇÕES" },
       { id: "diario", label: "DIÁRIO OFICIAL" },
       { id: "empregos", label: "EMPREGOS E CURSOS SINE" },
       { id: "saude", label: "NOTÍCIAS SAÚDE" },
@@ -34,6 +34,11 @@ export default function HomeShortcuts({
     // ✅ Navegação interna (fixa) para o User
     if (item.id === "cadastro" || item.label === "CADASTRO") {
       navigation.navigate("User");
+    }
+
+    // ✅ Navegação interna (fixa) para o Recebeiluminacao
+    if (item.id === "solicitacoes" || item.label === "SOLICITAÇÕES") {
+      navigation.navigate("Recebeiluminacao");
     }
 
     // ✅ continua disparando callback pra Home se você quiser usar depois

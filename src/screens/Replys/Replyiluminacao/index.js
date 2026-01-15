@@ -1,16 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView } from "react-native";
 import { useTheme } from "styled-components/native";
 import ProgressBarStatus from "../../../components/ProgressBarStatus";
+
+import { subscribeRequestById } from "../../../services/requests";
 
 import {
   ActionRow,
   AreaTitle,
   Card,
-  Chip,
-  ChipText,
   Container,
   Divider,
   FooterHint,
@@ -27,31 +27,51 @@ import {
 export default function Replyiluminacao({ navigation, route }) {
   const theme = useTheme();
 
-  const {
-    areaLabel = "SOLICITAÇÃO ILUMINAÇÃO PÚBLICA - 01",
-    descricao = "",
-    cep = "",
-    images = [],
-    location = null,
-  } = route?.params || {};
+  // ✅ agora vem só o id
+  const { requestId } = route?.params || {};
 
-  const descricaoTrim = useMemo(() => (descricao || "").trim(), [descricao]);
+  // ✅ dados do Firebase
+  const [data, setData] = useState(null);
 
-  // ✅ imagens viram state local pra permitir adicionar foto nova
-  const [localImages, setLocalImages] = useState(
-    Array.isArray(images) ? images : []
-  );
+  // ✅ fotos do processo (local do aparelho)
+  const [localImages, setLocalImages] = useState([]);
 
-  const hasImages = localImages.length > 0;
+  useEffect(() => {
+    if (!requestId) return;
 
+    const unsub = subscribeRequestById({
+      requestId,
+      onChange: (doc) => {
+        setData(doc);
+
+        // carrega imagens iniciais da solicitação (uma vez)
+        // para não sobrescrever as fotos locais do processo depois
+        if (doc && Array.isArray(doc.images)) {
+          setLocalImages((prev) => (prev.length ? prev : doc.images));
+        }
+      },
+    });
+
+    return () => unsub?.();
+  }, [requestId]);
+
+  // ✅ fallback enquanto carrega
+  const requestTitle = data?.requestTitle || "SOLICITAÇÃO ILUMINAÇÃO PÚBLICA - --";
+  const descricaoTrim = useMemo(() => (data?.descricao || "").trim(), [data?.descricao]);
+  const enderecoTrim = useMemo(() => (data?.enderecoPoste || "").trim(), [data?.enderecoPoste]);
+  const numeroTrim = useMemo(() => (data?.numeroPoste || "").trim(), [data?.numeroPoste]);
+
+  const location = data?.location || null;
   const hasLocation =
     typeof location?.latitude === "number" &&
     typeof location?.longitude === "number";
 
-  const hasCep = (cep || "").replace(/\D/g, "").length === 8;
-  const cepFmt = hasCep
-    ? cep.replace(/^(\d{5})(\d{3})$/, "$1-$2")
-    : "Não informado";
+  // ✅ suporta imagens como [{uri}] ou [{url}]
+  function getImgUri(img) {
+    return img?.uri || img?.url || null;
+  }
+
+  const hasImages = Array.isArray(localImages) && localImages.length > 0;
 
   async function ensureCameraPermission() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -59,6 +79,18 @@ export default function Replyiluminacao({ navigation, route }) {
       Alert.alert(
         "Permissão necessária",
         "Precisamos de acesso à câmera para tirar fotos."
+      );
+      return false;
+    }
+    return true;
+  }
+
+  async function ensureGalleryPermission() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permissão necessária",
+        "Precisamos de acesso à galeria para selecionar imagens."
       );
       return false;
     }
@@ -79,41 +111,26 @@ export default function Replyiluminacao({ navigation, route }) {
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
 
-    // ✅ adiciona a foto no começo do array (aparece primeiro)
-    setLocalImages((prev) => [{ uri: asset.uri }, ...prev]);
+    setLocalImages((prev) => [{ uri: asset.uri }, ...(prev || [])]);
   }
 
+  async function pickFromGallery() {
+    const ok = await ensureGalleryPermission();
+    if (!ok) return;
 
-  async function ensureGalleryPermission() {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== "granted") {
-    Alert.alert(
-      "Permissão necessária",
-      "Precisamos de acesso à galeria para selecionar imagens."
-    );
-    return false;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: false,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+
+    setLocalImages((prev) => [{ uri: asset.uri }, ...(prev || [])]);
   }
-  return true;
-}
-
-async function pickFromGallery() {
-  const ok = await ensureGalleryPermission();
-  if (!ok) return;
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    quality: 0.8,
-    allowsEditing: false,
-  });
-
-  if (result.canceled) return;
-
-  const asset = result.assets?.[0];
-  if (!asset?.uri) return;
-
-  setLocalImages((prev) => [{ uri: asset.uri }, ...prev]);
-}
-
 
   return (
     <ScrollView
@@ -129,7 +146,7 @@ async function pickFromGallery() {
               size={18}
               color={theme.colors.purple}
             />
-            <AreaTitle>{areaLabel}</AreaTitle>
+            <AreaTitle>{requestTitle}</AreaTitle>
           </Row>
 
           <Divider />
@@ -139,11 +156,13 @@ async function pickFromGallery() {
 
           <Divider />
 
-          <SectionTitle>CEP</SectionTitle>
-          <Chip>
-            <Ionicons name="location-outline" size={16} color="#fff" />
-            <ChipText>{cepFmt}</ChipText>
-          </Chip>
+          <SectionTitle>Endereço onde está o poste</SectionTitle>
+          <ValueText>{enderecoTrim || "—"}</ValueText>
+
+          <Divider />
+
+          <SectionTitle>Número do poste</SectionTitle>
+          <ValueText>{numeroTrim || "—"}</ValueText>
 
           <Divider />
 
@@ -165,19 +184,23 @@ async function pickFromGallery() {
               <FooterHint>{localImages.length} imagem(ns) anexada(s)</FooterHint>
 
               <PreviewGrid>
-                {localImages.map((img, idx) => (
-                  <PreviewItem key={`${img?.uri || idx}-${idx}`}>
-                    <PreviewImage source={{ uri: img.uri }} />
-                  </PreviewItem>
-                ))}
+                {localImages.map((img, idx) => {
+                  const uri = getImgUri(img);
+                  if (!uri) return null;
+
+                  return (
+                    <PreviewItem key={`${uri}-${idx}`}>
+                      <PreviewImage source={{ uri }} />
+                    </PreviewItem>
+                  );
+                })}
               </PreviewGrid>
             </>
           )}
 
           <Divider />
 
-          {/* ✅ botão de tirar foto (admin vai usar depois) */}
-          <SectionTitle>Adicionar foto</SectionTitle>
+          <SectionTitle>Fotos do processo de execução:</SectionTitle>
 
           <ActionRow>
             <SmallAction onPress={takePhoto}>
@@ -191,11 +214,11 @@ async function pickFromGallery() {
             </SmallAction>
           </ActionRow>
 
-
           <Divider />
 
           <SectionTitle>Status da solicitação</SectionTitle>
-          <ProgressBarStatus status="execucao" />
+          <ProgressBarStatus status={data?.status || "execucao"} />
+
           <Divider />
         </Card>
       </Container>

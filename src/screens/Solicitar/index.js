@@ -14,19 +14,25 @@ import { useTheme } from "styled-components/native";
 import MapModal from "../../components/MapModal";
 import PrimaryButtonenviarareas from "../../components/PrimaryButtonenviarareas";
 import PrimaryButtonlocalizacao from "../../components/PrimaryButtonlocalizacao";
+import { createRequest } from "../../services/requests";
+import { getUserId } from "../../services/userId";
+
+
 
 import {
   ActionRow,
+  AddressInput,
+  // ✅ NOVOS
+  AddressRow,
   AreaTitle,
   Card,
-  CepInput,
-  CepRow,
   Container,
   CounterRow,
   CounterText,
   DescriptionInput,
   FieldLabel,
   Helper,
+  PostNumberInput,
   PreviewGrid,
   PreviewImage,
   PreviewItem,
@@ -37,11 +43,13 @@ import {
   SmallActionText,
 } from "./styles";
 
+
 export default function Solicitar({ navigation }) {
   const theme = useTheme();
 
   const [modal, setModal] = useState(false);
-  const [cep, setCep] = useState("");
+  const [enderecoPoste, setEnderecoPoste] = useState("");
+  const [numeroPoste, setNumeroPoste] = useState("");
   const [descricao, setDescricao] = useState("");
 
   const [images, setImages] = useState([]); // [{ uri }]
@@ -56,15 +64,6 @@ export default function Solicitar({ navigation }) {
   const descricaoTrim = useMemo(() => descricao.trim(), [descricao]);
   const canSend = !!descricaoTrim && !loading;
 
-  function handleCepChange(value) {
-    const only = value.replace(/\D/g, "").slice(0, 8);
-    setCep(only);
-
-    if (only.length === 8) {
-      Keyboard.dismiss();
-      navigation.navigate("CepPreenchido", { cep: only });
-    }
-  }
 
  
 
@@ -170,24 +169,51 @@ export default function Solicitar({ navigation }) {
     setModal(false);
   }
 
-function handleSend() {
-  Keyboard.dismiss();
 
-  if (!descricaoTrim) {
-    setSentOnce(true);
-    Alert.alert("Atenção", "Preencha a descrição da solicitação.");
-    return;
+
+
+async function handleSend() {
+  try {
+    Keyboard.dismiss();
+
+    if (!descricaoTrim) {
+      setSentOnce(true);
+      Alert.alert("Atenção", "Preencha a descrição da solicitação.");
+      return;
+    }
+
+    const userId = await getUserId();
+
+    const { requestId } = await createRequest({
+      userId,
+      areaId: "iluminacao",
+      areaLabel: "ILUMINAÇÃO PÚBLICA",
+      descricao: descricaoTrim,
+      enderecoPoste,
+      numeroPoste,
+      images,
+      location,
+    });
+
+    Alert.alert(
+      "Sucesso",
+      "Solicitação enviada com sucesso!",
+      [
+        {
+          text: "OK",
+          onPress: () =>
+            navigation.navigate("Replyiluminacao", { requestId }),
+        },
+      ],
+      { cancelable: false }
+    );
+  } catch (_err) {
+    Alert.alert("Erro", "Não foi possível enviar sua solicitação.");
   }
-
-  navigation.navigate("Replyiluminacao", {
-    areaId: "iluminacao",
-    areaLabel: "ILUMINAÇÃO PÚBLICA",
-    descricao: descricaoTrim,
-    cep,
-    images,
-    location,
-  });
 }
+
+
+
 
 
   return (
@@ -271,18 +297,29 @@ function handleSend() {
               </PreviewGrid>
             )}
 
-            <FieldLabel>Adicione o endereço à solicitação</FieldLabel>
+            <FieldLabel>Endereço onde está o poste</FieldLabel>
 
-            <CepRow>
-              <CepInput
-                placeholder="CEP"
-                placeholderTextColor="#4B0F8A"
-                keyboardType="numeric"
-                value={cep}
-                onChangeText={handleCepChange}
-                returnKeyType="done"
-              />
-            </CepRow>
+              <AddressRow>
+                <AddressInput
+                  placeholder="Ex: Rua X, Setor Y, próximo ao nº 123"
+                  placeholderTextColor="#9CA3AF"
+                  value={enderecoPoste}
+                  onChangeText={setEnderecoPoste}
+                  returnKeyType="next"
+                />
+              </AddressRow>
+
+              <FieldLabel>Número do poste</FieldLabel>
+
+              <AddressRow>
+                <PostNumberInput
+                  placeholder="Ex: 123456 (se tiver)"
+                  placeholderTextColor="#9CA3AF"
+                  value={numeroPoste}
+                  onChangeText={(t) => setNumeroPoste(t.replace(/\s/g, "").slice(0, 30))}
+                  returnKeyType="done"
+                />
+              </AddressRow>
 
             <PrimaryButtonlocalizacao
               title={

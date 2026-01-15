@@ -44,25 +44,29 @@ export default function Cadastro({ navigation }) {
   const [isPicking, setIsPicking] = useState(false);
 
   // ✅ Fotos (URIs)
-  const [fotoCpfRg, setFotoCpfRg] = useState(null);
-  const [fotoTitulo1, setFotoTitulo1] = useState(null);
-  const [fotoTitulo2, setFotoTitulo2] = useState(null);
+  const [fotoCpfFrente, setFotoCpfFrente] = useState(null);
+  const [fotoCpfVerso, setFotoCpfVerso] = useState(null);
+
+  const [fotoTitulo1, setFotoTitulo1] = useState(null); // frente
+  const [fotoTitulo2, setFotoTitulo2] = useState(null); // verso
 
   // ✅ Popup custom
   const [popupVisible, setPopupVisible] = useState(false);
   const [popupTitle, setPopupTitle] = useState("");
   const [popupMessage, setPopupMessage] = useState("");
 
-  // 0º SUS (agora com 5 dígitos)
+  // 0º SUS (5 dígitos)
   const [sus, setSus] = useState("");
   const [susBloqueado, setSusBloqueado] = useState(false);
 
-  // ✅ padrão atual para liberar
   const SUS_PADRAO_LIBERADO = "00000";
   const SUS_TAMANHO = 5;
 
-  // ✅ Libera o formulário só quando SUS tiver 5 dígitos e for igual ao padrão
-  const susLiberado = sus.length === SUS_TAMANHO && !susBloqueado && sus === SUS_PADRAO_LIBERADO;
+  // ✅ Libera o formulário só quando SUS tiver 5 dígitos e bater com o padrão
+  const susLiberado =
+    sus.length === SUS_TAMANHO &&
+    !susBloqueado &&
+    sus === SUS_PADRAO_LIBERADO;
 
   // 1º Nome
   const [nome, setNome] = useState("");
@@ -114,7 +118,7 @@ export default function Cadastro({ navigation }) {
       setSusBloqueado(true);
       showPopup(
         "Acesso bloqueado",
-        `Usuário não tem permissão para acessar o SUS na região de Aragoiania.`
+        "Usuário não tem permissão para acessar o SUS na região de Aragoiania."
       );
     } else {
       setSusBloqueado(false);
@@ -163,72 +167,94 @@ export default function Cadastro({ navigation }) {
     return true;
   }
 
-  async function abrirCamera(setter) {
-    if (!susLiberado) return;
-    if (isPicking) return;
-    setIsPicking(true);
+  // ✅ Helper: pega FRENTE e depois VERSO (câmera ou galeria)
+async function pegarFrenteVerso({ source, setFrente, setVerso }) {
+  if (!susLiberado) return;
+  if (isPicking) return;
 
-    try {
-      const ok = await pedirPermissoesCamera();
-      if (!ok) return;
+  setIsPicking(true);
 
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.7,
-        allowsEditing: false,
-      });
+  try {
+    const ok =
+      source === "camera"
+        ? await pedirPermissoesCamera()
+        : await pedirPermissoesGaleria();
 
-      if (!result.canceled) {
-        setter(result.assets?.[0]?.uri || null);
-      }
-    } catch (e) {
-      Alert.alert("Erro", "Não foi possível abrir a câmera.");
-    } finally {
-      setIsPicking(false);
+    if (!ok) return;
+
+    // 1) FRENTE
+    const resultFrente =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7,
+            allowsEditing: false,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7,
+            allowsEditing: false, // ✅ igual câmera (recomendado)
+          });
+
+    if (resultFrente.canceled) return;
+
+    const uriFrente = resultFrente.assets?.[0]?.uri || null;
+    setFrente(uriFrente);
+
+    // 2) VERSO
+    const resultVerso =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7,
+            allowsEditing: false,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7,
+            allowsEditing: false, // ✅ igual câmera (recomendado)
+          });
+
+    if (resultVerso.canceled) {
+      // ✅ cancelou o verso → desfaz a frente também
+      setFrente(null);
+      setVerso(null);
+      return;
     }
-  }
 
-  async function abrirGaleria(setter) {
-    if (!susLiberado) return;
-    if (isPicking) return;
-    setIsPicking(true);
-
-    try {
-      const ok = await pedirPermissoesGaleria();
-      if (!ok) return;
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.7,
-        allowsEditing: true,
-        aspect: [4, 3],
-      });
-
-      if (!result.canceled) {
-        setter(result.assets?.[0]?.uri || null);
-      }
-    } catch (e) {
-      Alert.alert("Erro", "Não foi possível abrir a galeria.");
-    } finally {
-      setIsPicking(false);
-    }
+    const uriVerso = resultVerso.assets?.[0]?.uri || null;
+    setVerso(uriVerso);
+  } catch (e) {
+    Alert.alert("Erro", "Não foi possível selecionar as fotos.");
+    setFrente(null);
+    setVerso(null);
+  } finally {
+    setIsPicking(false);
   }
+}
 
-  // 4º CPF/RG
-  function handleCameraCpfRg() {
-    abrirCamera(setFotoCpfRg);
-  }
-  function handleGaleriaCpfRg() {
-    abrirGaleria(setFotoCpfRg);
-  }
 
-  // 8º Título
-  function handleCameraTitulo1() {
-    abrirCamera(setFotoTitulo1);
-  }
-  function handleGaleriaTituloVerso() {
-    abrirGaleria(setFotoTitulo2);
-  }
+  // ✅ CPF/RG/CNH (frente/verso)
+function handleCameraCpfRg() {
+  if (isPicking) return;
+  pegarFrenteVerso({ source: "camera", setFrente: setFotoCpfFrente, setVerso: setFotoCpfVerso });
+}
+
+function handleGaleriaCpfRg() {
+  if (isPicking) return;
+  pegarFrenteVerso({ source: "gallery", setFrente: setFotoCpfFrente, setVerso: setFotoCpfVerso });
+}
+
+function handleCameraTitulo() {
+  if (isPicking) return;
+  pegarFrenteVerso({ source: "camera", setFrente: setFotoTitulo1, setVerso: setFotoTitulo2 });
+}
+
+function handleGaleriaTitulo() {
+  if (isPicking) return;
+  pegarFrenteVerso({ source: "gallery", setFrente: setFotoTitulo1, setVerso: setFotoTitulo2 });
+}
+
 
   // ✅ Cadastrar
   function handleCadastrar() {
@@ -244,14 +270,29 @@ export default function Cadastro({ navigation }) {
     if (!endereco) return Alert.alert("Endereço", "Informe seu endereço.");
     if (!tituloEleitor) return Alert.alert("Título de eleitor", "Informe o título de eleitor.");
 
-    if (!fotoCpfRg) return Alert.alert("Documento obrigatório", "Envie a foto do CPF ou RG.");
-    if (!fotoTitulo1 || !fotoTitulo2)
-      return Alert.alert("Documento obrigatório", "Envie as duas fotos do Título de Eleitor.");
+    // ✅ Agora CPF/RG/CNH exige FRENTE + VERSO
+    if (!fotoCpfFrente || !fotoCpfVerso) {
+      return Alert.alert(
+        "Documento obrigatório",
+        "Envie as duas fotos (frente e verso) do CPF, RG ou CNH."
+      );
+    }
 
-    if (senha.length < 6)
+    // ✅ Título exige FRENTE + VERSO
+    if (!fotoTitulo1 || !fotoTitulo2) {
+      return Alert.alert(
+        "Documento obrigatório",
+        "Envie as duas fotos (frente e verso) do Título de Eleitor."
+      );
+    }
+
+    if (senha.length < 6) {
       return Alert.alert("Senha inválida", "A senha deve conter no mínimo 6 caracteres.");
+    }
 
-    if (senha !== confirmarSenha) return Alert.alert("Senha", "As senhas não conferem.");
+    if (senha !== confirmarSenha) {
+      return Alert.alert("Senha", "As senhas não conferem.");
+    }
 
     navigation.navigate("Login");
   }
@@ -307,10 +348,9 @@ export default function Cadastro({ navigation }) {
             ref={susRef}
             value={sus}
             onChangeText={(v) => {
-              const limpo = v.replace(/\D/g, "").slice(0, SUS_TAMANHO); // ✅ máximo 5
+              const limpo = v.replace(/\D/g, "").slice(0, SUS_TAMANHO);
               setSus(limpo);
 
-              // ✅ só valida quando completar 5 dígitos
               if (limpo.length === SUS_TAMANHO) {
                 validarSusOuBloquear(limpo);
               } else {
@@ -372,8 +412,8 @@ export default function Cadastro({ navigation }) {
               </Col>
             </Row2>
 
-            {/* 4º Fotos CPF/RG */}
-            <SectionHint>Fotos do CPF e RG</SectionHint>
+            {/* 4º Fotos CPF/RG/CNH (FRENTE + VERSO) */}
+            <SectionHint>Foto do CPF, RG ou CNH (Frente e Verso)</SectionHint>
             <PhotoActionsRow>
               <PhotoActionBtn
                 onPress={handleCameraCpfRg}
@@ -418,11 +458,11 @@ export default function Cadastro({ navigation }) {
               editable={susLiberado}
             />
 
-            {/* 8º Fotos Título */}
-            <SectionHint>Fotos do Título de Eleitor</SectionHint>
+            {/* 8º Fotos Título (FRENTE + VERSO) */}
+            <SectionHint>Fotos do Título de Eleitor (Frente e Verso)</SectionHint>
             <PhotoActionsRow>
               <PhotoActionBtn
-                onPress={handleCameraTitulo1}
+                onPress={handleCameraTitulo}
                 activeOpacity={0.9}
                 disabled={!susLiberado || isPicking}
                 style={{ opacity: !susLiberado || isPicking ? 0.6 : 1 }}
@@ -432,7 +472,7 @@ export default function Cadastro({ navigation }) {
               </PhotoActionBtn>
 
               <PhotoActionBtn
-                onPress={handleGaleriaTituloVerso}
+                onPress={handleGaleriaTitulo}
                 activeOpacity={0.9}
                 disabled={!susLiberado || isPicking}
                 style={{ opacity: !susLiberado || isPicking ? 0.6 : 1 }}
