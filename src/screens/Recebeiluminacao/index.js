@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Text,
   TouchableWithoutFeedback,
+  View,
 } from "react-native";
 
 import { onAuthStateChanged } from "firebase/auth";
 import AreaRequestsCard from "../../components/AreaRequestsCard";
-import { auth } from "../../services/firebase"; // ✅ pega do seu firebase conectado
+import { auth } from "../../services/firebase";
 import { subscribeRequests } from "../../services/requests";
 
 import { Container } from "./styles";
@@ -24,19 +27,25 @@ const AREA_REPLY_ROUTE = {
 // ✅ helper de navegação
 function navigateToReply(navigation, request) {
   const route = AREA_REPLY_ROUTE[request?.areaId] || "Replyiluminacao";
-  navigation.navigate(route, { requestId: request.id });
+  navigation.navigate(route, { requestId: request?.id });
 }
 
 export default function Recebeiluminacao({ navigation }) {
   const [requests, setRequests] = useState([]);
   const [uid, setUid] = useState(null);
 
-  // ✅ 1) escuta o Auth (garante que teremos UID quando carregar)
+  // ✅ loading states
+  const [authLoading, setAuthLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
+
+  // ✅ 1) escuta o Auth
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       const nextUid = user?.uid || null;
       console.log("🔑 Auth UID:", nextUid);
+
       setUid(nextUid);
+      setAuthLoading(false);
 
       if (!nextUid) {
         navigation.replace("Login");
@@ -50,10 +59,15 @@ export default function Recebeiluminacao({ navigation }) {
   useEffect(() => {
     if (!uid) return;
 
+    setDataLoading(true);
+
     const unsub = subscribeRequests({
       userId: uid,
       max: 200,
-      onChange: setRequests,
+      onChange: (list) => {
+        setRequests(Array.isArray(list) ? list : []);
+        setDataLoading(false); // ✅ primeira carga chegou
+      },
     });
 
     return () => unsub?.();
@@ -69,7 +83,7 @@ export default function Recebeiluminacao({ navigation }) {
       if (!map[areaId]) {
         map[areaId] = {
           areaId,
-          areaLabel: r?.areaLabel || areaId.toUpperCase(),
+          areaLabel: r?.areaLabel || String(areaId).toUpperCase(),
           requests: [],
         };
       }
@@ -92,6 +106,8 @@ export default function Recebeiluminacao({ navigation }) {
     return arr;
   }, [requests]);
 
+  const showLoading = authLoading || (!!uid && dataLoading);
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <KeyboardAvoidingView
@@ -100,18 +116,34 @@ export default function Recebeiluminacao({ navigation }) {
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
+          contentContainerStyle={{ padding: 12, paddingBottom: 24, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <Container style={{ flex: 1 }}>
-            {groupedByArea.map((group) => (
-              <AreaRequestsCard
-                key={group.areaId}
-                areaLabel={group.areaLabel}
-                requests={group.requests}
-                onPressRequest={(r) => navigateToReply(navigation, r)}
-              />
-            ))}
+            {showLoading ? (
+              <View
+                style={{
+                  flex: 1,
+                  minHeight: 300,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                }}
+              >
+                <ActivityIndicator size="large" />
+                <Text style={{ opacity: 0.7 }}>Carregando solicitações...</Text>
+              </View>
+            ) : (
+              groupedByArea.map((group) => (
+                <AreaRequestsCard
+                  key={group.areaId}
+                  areaLabel={group.areaLabel}
+                  requests={group.requests}
+                  onPressRequest={(r) => navigateToReply(navigation, r)}
+                />
+              ))
+            )}
           </Container>
         </ScrollView>
       </KeyboardAvoidingView>

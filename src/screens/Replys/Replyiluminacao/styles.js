@@ -73,9 +73,9 @@ export const PreviewGrid = styled.View`
   gap: 10px;
 `;
 
-export const PreviewItem = styled.View`
-  width: 84px;
-  height: 84px;
+export const PreviewItem = styled.TouchableOpacity`
+  width: 31%;
+  aspect-ratio: 1;
   border-radius: 12px;
   overflow: hidden;
 `;

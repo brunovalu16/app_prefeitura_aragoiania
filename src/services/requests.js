@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   collection,
   doc,
   limit,
@@ -7,10 +8,12 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 
 import { db } from "./firebase";
+import { uploadImageAsync } from "./uploadImage";
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -18,6 +21,8 @@ function pad2(n) {
 
 /**
  * Cria solicitação com numeração sequencial por userId+areaId
+ * ✅ Upload das imagens para Storage e salva URLs no Firestore
+ * ⚠️ SEM serverTimestamp dentro de arrays
  */
 export async function createRequest({
   userId,
@@ -38,6 +43,17 @@ export async function createRequest({
   const reqCol = collection(db, "requests");
   const newReqRef = doc(reqCol);
 
+  // ✅ normaliza imagens: [{uri}] | [{url}] | ["..."]
+  const safeImages = Array.isArray(images) ? images : [];
+  const imageUris = safeImages
+    .map((img) => {
+      if (!img) return null;
+      if (typeof img === "string") return img;
+      return img.uri || img.url || null;
+    })
+    .filter(Boolean);
+
+  // ✅ 1) cria doc vazio (images/processImages) dentro da transaction
   const result = await runTransaction(db, async (tx) => {
     const counterSnap = await tx.get(counterRef);
     const lastNumber = counterSnap.exists()
@@ -58,46 +74,71 @@ export async function createRequest({
       descricao: (descricao || "").trim(),
       enderecoPoste: (enderecoPoste || "").trim(),
       numeroPoste: (numeroPoste || "").trim(),
-      images: Array.isArray(images) ? images : [],
+
+      images: [], // ✅ preenche depois com URLs
+      processImages: [], // ✅ já inicia
+
       location: location || null,
       status: "execucao",
-      createdAt: serverTimestamp(),
+      createdAt: serverTimestamp(), // ✅ aqui pode
     });
 
-    return { requestId: newReqRef.id, requestTitle };
+    return { requestId: newReqRef.id, requestTitle, requestNumber: nextNumber };
   });
+
+  // ✅ 2) se não tiver imagens, já retorna
+  if (!imageUris.length) return result;
+
+  // ✅ 3) upload fora da transaction e salva urls no doc
+  const uploaded = [];
+
+  for (let i = 0; i < imageUris.length; i++) {
+    const uri = imageUris[i];
+
+    // se já for url http(s), mantém
+    if (
+      typeof uri === "string" &&
+      (uri.startsWith("http://") || uri.startsWith("https://"))
+    ) {
+      uploaded.push({ url: uri, createdAt: Date.now() });
+      continue;
+    }
+
+    const filePath = `requests/${userId}/${areaId}/${result.requestId}/request/${Date.now()}_${i}.jpg`;
+    const url = await uploadImageAsync({ uri, path: filePath });
+
+    uploaded.push({
+      url,
+      createdAt: Date.now(), // ✅ permitido em array
+    });
+  }
+
+  await updateDoc(newReqRef, { images: uploaded });
 
   return result;
 }
 
 /**
  * Assina (realtime) solicitações do usuário.
- * - Se passar areaId -> filtra por área
- * - Se NÃO passar areaId -> traz todas as solicitações do usuário
  */
 export function subscribeRequests({ userId, areaId, onChange, max = 50 }) {
-  // ✅ evita Firestore quebrar com where(undefined)
   if (!userId) {
     console.log("⚠️ subscribeRequests: userId vazio", userId);
     onChange?.([]);
     return () => {};
   }
 
-  const ref = collection(db, "requests");
+  const refCol = collection(db, "requests");
 
-  // ✅ constraints base
   const constraints = [
     where("userId", "==", userId),
     orderBy("createdAt", "desc"),
     limit(max),
   ];
 
-  // ✅ filtra por areaId só se existir
-  if (areaId) {
-    constraints.unshift(where("areaId", "==", areaId));
-  }
+  if (areaId) constraints.unshift(where("areaId", "==", areaId));
 
-  const q = query(ref, ...constraints);
+  const q = query(refCol, ...constraints);
 
   return onSnapshot(
     q,
@@ -135,4 +176,31 @@ export function subscribeRequestById({ requestId, onChange }) {
       onChange?.(null);
     }
   );
+}
+
+/**
+ * ✅ Anexa foto do processo:
+ * - Upload no Storage
+ * - Salva em processImages: [{ url, createdAt }]
+ */
+export async function addProcessImage({ requestId, userId, areaId, uri }) {
+  if (!requestId) throw new Error("addProcessImage: requestId obrigatório");
+  if (!userId) throw new Error("addProcessImage: userId obrigatório");
+  if (!uri) throw new Error("addProcessImage: uri obrigatório");
+
+  const safeArea = areaId || "iluminacao";
+
+  const filePath = `requests/${userId}/${safeArea}/${requestId}/process/${Date.now()}.jpg`;
+  const url = await uploadImageAsync({ uri, path: filePath });
+
+  const refDoc = doc(db, "requests", requestId);
+
+  await updateDoc(refDoc, {
+    processImages: arrayUnion({
+      url,
+      createdAt: Date.now(), // ✅ permitido
+    }),
+  });
+
+  return { url };
 }

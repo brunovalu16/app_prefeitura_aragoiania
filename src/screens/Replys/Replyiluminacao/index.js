@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView } from "react-native";
+import { Alert, Image, Modal, Pressable, ScrollView } from "react-native";
 import { useTheme } from "styled-components/native";
-import ProgressBarStatus from "../../../components/ProgressBarStatus";
 
-import { subscribeRequestById } from "../../../services/requests";
+import ProgressBarStatus from "../../../components/ProgressBarStatus";
+import { addProcessImage, subscribeRequestById } from "../../../services/requests";
+import { getAuthUserId } from "../../../services/userId";
 
 import {
   ActionRow,
@@ -33,45 +34,72 @@ export default function Replyiluminacao({ navigation, route }) {
   // ✅ dados do Firebase
   const [data, setData] = useState(null);
 
-  // ✅ fotos do processo (local do aparelho)
-  const [localImages, setLocalImages] = useState([]);
+  // ✅ preview modal (abrir imagem)
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUri, setPreviewUri] = useState(null);
+
+  function openPreview(uri) {
+    if (!uri) return;
+    setPreviewUri(uri);
+    setPreviewOpen(true);
+  }
+  function closePreview() {
+    setPreviewOpen(false);
+    setPreviewUri(null);
+  }
 
   useEffect(() => {
     if (!requestId) return;
 
     const unsub = subscribeRequestById({
       requestId,
-      onChange: (doc) => {
-        setData(doc);
-
-        // carrega imagens iniciais da solicitação (uma vez)
-        // para não sobrescrever as fotos locais do processo depois
-        if (doc && Array.isArray(doc.images)) {
-          setLocalImages((prev) => (prev.length ? prev : doc.images));
-        }
-      },
+      onChange: (doc) => setData(doc || null),
     });
 
     return () => unsub?.();
   }, [requestId]);
 
   // ✅ fallback enquanto carrega
-  const requestTitle = data?.requestTitle || "SOLICITAÇÃO ILUMINAÇÃO PÚBLICA - --";
-  const descricaoTrim = useMemo(() => (data?.descricao || "").trim(), [data?.descricao]);
-  const enderecoTrim = useMemo(() => (data?.enderecoPoste || "").trim(), [data?.enderecoPoste]);
-  const numeroTrim = useMemo(() => (data?.numeroPoste || "").trim(), [data?.numeroPoste]);
+  const requestTitle =
+    data?.requestTitle || "SOLICITAÇÃO ILUMINAÇÃO PÚBLICA - --";
+
+  const descricaoTrim = useMemo(
+    () => (data?.descricao || "").trim(),
+    [data?.descricao]
+  );
+
+  const enderecoTrim = useMemo(
+    () => (data?.enderecoPoste || "").trim(),
+    [data?.enderecoPoste]
+  );
+
+  const numeroTrim = useMemo(
+    () => (data?.numeroPoste || "").trim(),
+    [data?.numeroPoste]
+  );
 
   const location = data?.location || null;
   const hasLocation =
     typeof location?.latitude === "number" &&
     typeof location?.longitude === "number";
 
-  // ✅ suporta imagens como [{uri}] ou [{url}]
+  // ✅ suporta imagens como [{uri}] ou [{url}] ou string direta
   function getImgUri(img) {
-    return img?.uri || img?.url || null;
+    if (!img) return null;
+    if (typeof img === "string") return img;
+    return img?.url || img?.uri || null;
   }
 
-  const hasImages = Array.isArray(localImages) && localImages.length > 0;
+  // ✅ imagens da solicitação (criadas no Solicitar)
+  const requestImages = Array.isArray(data?.images) ? data.images : [];
+
+  // ✅ fotos do processo (salvas pelo Reply)
+  const processImages = Array.isArray(data?.processImages)
+    ? data.processImages
+    : [];
+
+  const hasRequestImages = requestImages.length > 0;
+  const hasProcessImages = processImages.length > 0;
 
   async function ensureCameraPermission() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -97,39 +125,68 @@ export default function Replyiluminacao({ navigation, route }) {
     return true;
   }
 
+  // ✅ salva no Storage + Firestore (processImages)
   async function takePhoto() {
-    const ok = await ensureCameraPermission();
-    if (!ok) return;
+    try {
+      const ok = await ensureCameraPermission();
+      if (!ok) return;
 
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      allowsEditing: false,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsEditing: false,
+      });
 
-    if (result.canceled) return;
 
-    const asset = result.assets?.[0];
-    if (!asset?.uri) return;
+      if (result.canceled) return;
 
-    setLocalImages((prev) => [{ uri: asset.uri }, ...(prev || [])]);
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+
+      const userId = await getAuthUserId();
+
+      await addProcessImage({
+        requestId,
+        userId,
+        areaId: data?.areaId || "iluminacao",
+        uri: asset.uri,
+      });
+    } catch (e) {
+      console.log("❌ takePhoto:", e?.code, e?.message);
+      Alert.alert("Erro", "Não foi possível enviar a foto.");
+    }
   }
 
+  // ✅ salva no Storage + Firestore (processImages)
   async function pickFromGallery() {
-    const ok = await ensureGalleryPermission();
-    if (!ok) return;
+    try {
+      const ok = await ensureGalleryPermission();
+      if (!ok) return;
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsEditing: false,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsEditing: false,
+      });
 
-    if (result.canceled) return;
 
-    const asset = result.assets?.[0];
-    if (!asset?.uri) return;
+      if (result.canceled) return;
 
-    setLocalImages((prev) => [{ uri: asset.uri }, ...(prev || [])]);
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+
+      const userId = await getAuthUserId();
+
+      await addProcessImage({
+        requestId,
+        userId,
+        areaId: data?.areaId || "iluminacao",
+        uri: asset.uri,
+      });
+    } catch (e) {
+      console.log("❌ pickFromGallery:", e?.code, e?.message);
+      Alert.alert("Erro", "Não foi possível enviar a foto.");
+    }
   }
 
   return (
@@ -169,27 +226,35 @@ export default function Replyiluminacao({ navigation, route }) {
           <SectionTitle>Localização</SectionTitle>
           <ValueText>
             {hasLocation
-              ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+              ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(
+                  5
+                )}`
               : "Não informada"}
           </ValueText>
 
           <Divider />
 
-          <SectionTitle>Imagens</SectionTitle>
+          <SectionTitle>Imagens da solicitação</SectionTitle>
 
-          {!hasImages ? (
+          {!hasRequestImages ? (
             <ValueText>Nenhuma imagem enviada.</ValueText>
           ) : (
             <>
-              <FooterHint>{localImages.length} imagem(ns) anexada(s)</FooterHint>
+              <FooterHint>
+                {requestImages.length} imagem(ns) anexada(s)
+              </FooterHint>
 
               <PreviewGrid>
-                {localImages.map((img, idx) => {
+                {requestImages.map((img, idx) => {
                   const uri = getImgUri(img);
                   if (!uri) return null;
 
                   return (
-                    <PreviewItem key={`${uri}-${idx}`}>
+                    <PreviewItem
+                      key={`${uri}-${idx}`}
+                      activeOpacity={0.9}
+                      onPress={() => openPreview(uri)}
+                    >
                       <PreviewImage source={{ uri }} />
                     </PreviewItem>
                   );
@@ -200,7 +265,7 @@ export default function Replyiluminacao({ navigation, route }) {
 
           <Divider />
 
-          <SectionTitle>Fotos do processo de execução:</SectionTitle>
+          <SectionTitle>Fotos do processo de execução</SectionTitle>
 
           <ActionRow>
             <SmallAction onPress={takePhoto}>
@@ -214,6 +279,35 @@ export default function Replyiluminacao({ navigation, route }) {
             </SmallAction>
           </ActionRow>
 
+          {hasProcessImages ? (
+            <>
+              <FooterHint>
+                {processImages.length} foto(s) do processo
+              </FooterHint>
+
+              <PreviewGrid>
+                {processImages.map((img, idx) => {
+                  const uri = getImgUri(img);
+                  if (!uri) return null;
+
+                  return (
+                    <PreviewItem
+                      key={`${uri}-process-${idx}`}
+                      activeOpacity={0.9}
+                      onPress={() => openPreview(uri)}
+                    >
+                      <PreviewImage source={{ uri }} />
+                    </PreviewItem>
+                  );
+                })}
+              </PreviewGrid>
+            </>
+          ) : (
+            <ValueText style={{ marginTop: 10 }}>
+              Nenhuma foto do processo enviada.
+            </ValueText>
+          )}
+
           <Divider />
 
           <SectionTitle>Status da solicitação</SectionTitle>
@@ -221,6 +315,33 @@ export default function Replyiluminacao({ navigation, route }) {
 
           <Divider />
         </Card>
+
+        {/* ✅ MODAL DE PREVIEW */}
+        <Modal
+          visible={previewOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={closePreview}
+        >
+          <Pressable
+            onPress={closePreview}
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.92)",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 16,
+            }}
+          >
+            {!!previewUri && (
+              <Image
+                source={{ uri: previewUri }}
+                style={{ width: "100%", height: "80%" }}
+                resizeMode="contain"
+              />
+            )}
+          </Pressable>
+        </Modal>
       </Container>
     </ScrollView>
   );

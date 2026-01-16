@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Keyboard,
@@ -10,6 +10,8 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { useTheme } from "styled-components/native";
+
+import { testStorageUpload } from "../../services/storageTest";
 
 import MapModal from "../../components/MapModal";
 import PrimaryButtonenviarareas from "../../components/PrimaryButtonenviarareas";
@@ -61,7 +63,7 @@ export default function Solicitar({ navigation }) {
   const [images, setImages] = useState([]); // [{ uri }]
   const [location, setLocation] = useState(null); // { latitude, longitude }
 
-  const [loading ] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [sentOnce, setSentOnce] = useState(false);
 
   const MAX_PHOTOS = 5;
@@ -72,6 +74,12 @@ export default function Solicitar({ navigation }) {
 
 
  
+  // chama uma vez só pra testar
+useEffect(() => {
+  testStorageUpload().catch((e) =>
+    console.log("❌ STORAGE TEST FAIL:", e?.code, e?.message, e)
+  );
+}, []);
 
   async function ensureMediaPermission() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -188,7 +196,10 @@ async function handleSend() {
       return;
     }
 
-    const userId = getAuthUserId(); // ✅ uid real
+    if (loading) return; // evita duplo clique
+    setLoading(true);
+
+    const userId = await getAuthUserId(); // ✅ usa await (fica compatível com as 2 versões)
 
     const { requestId } = await createRequest({
       userId,
@@ -201,14 +212,16 @@ async function handleSend() {
       location,
     });
 
-    // ✅ abre popup gráfico de sucesso
     setSuccessRequestId(requestId);
     setSuccessOpen(true);
   } catch (_err) {
     console.log("❌ handleSend:", _err?.code, _err?.message);
     Alert.alert("Erro", "Não foi possível enviar sua solicitação.");
+  } finally {
+    setLoading(false);
   }
 }
+
 
 
 
