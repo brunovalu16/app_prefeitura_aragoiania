@@ -33,45 +33,49 @@ function navigateToReply(navigation, request) {
 export default function Recebeiluminacao({ navigation }) {
   const [requests, setRequests] = useState([]);
   const [uid, setUid] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false); // ✅ ADD
 
   // ✅ loading states
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
 
   // ✅ 1) escuta o Auth
-  useEffect(() => {
+useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       const nextUid = user?.uid || null;
+      const email = (user?.email || "").toLowerCase();
+
       console.log("🔑 Auth UID:", nextUid);
+      console.log("📧 Auth Email:", email);
 
       setUid(nextUid);
+      setIsAdmin(email === "brunovalu16@gmail.com"); // ✅ admin pelo email
       setAuthLoading(false);
 
-      if (!nextUid) {
-        navigation.replace("Login");
-      }
+      if (!nextUid) navigation.replace("Login");
     });
 
     return () => unsubAuth();
   }, [navigation]);
 
   // ✅ 2) quando tiver UID, assina o Firestore
-  useEffect(() => {
+   useEffect(() => {
     if (!uid) return;
 
     setDataLoading(true);
 
     const unsub = subscribeRequests({
-      userId: uid,
+      userId: isAdmin ? null : uid, // ✅ admin: sem filtro de userId
       max: 200,
       onChange: (list) => {
         setRequests(Array.isArray(list) ? list : []);
-        setDataLoading(false); // ✅ primeira carga chegou
+        setDataLoading(false);
       },
     });
 
     return () => unsub?.();
-  }, [uid]);
+  }, [uid, isAdmin]); // ✅ ADD isAdmin
+
 
   // ✅ agrupa solicitações por área
   const groupedByArea = useMemo(() => {

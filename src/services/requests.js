@@ -1,9 +1,11 @@
 import {
+  arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
   doc,
   getDoc,
+  getFirestore,
   limit,
   onSnapshot,
   orderBy,
@@ -11,13 +13,16 @@ import {
   runTransaction,
   serverTimestamp,
   updateDoc,
-  where,
+  where
 } from "firebase/firestore";
 
-import { deleteObject, ref as storageRef } from "firebase/storage";
-
+import { deleteObject, getStorage, ref, ref as storageRef } from "firebase/storage";
 import { db, storage } from "./firebase";
 import { uploadImageAsync } from "./uploadImage";
+
+
+
+
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -27,7 +32,50 @@ function pad2(n) {
 function getImgUri(img) {
   if (!img) return null;
   if (typeof img === "string") return img;
-  return img.url || img.uri || null;
+  return img?.url || img?.uri || null;
+}
+
+export async function deleteRequestImage({ requestId, imgObj }) {
+  if (!requestId) throw new Error("requestId obrigatório");
+  if (!imgObj) throw new Error("imgObj obrigatório");
+
+  const db = getFirestore();
+  const storage = getStorage();
+
+  // 1) remove do array no Firestore
+  const requestRef = doc(db, "requests", requestId);
+  await updateDoc(requestRef, {
+    images: arrayRemove(imgObj),
+  });
+
+  // 2) tenta apagar do Storage (se for URL do Firebase Storage)
+  const uri = getImgUri(imgObj);
+  if (uri && uri.includes("firebasestorage.googleapis.com")) {
+    try {
+      const decodedPath = decodeURIComponent(uri.split("/o/")[1]?.split("?")[0] || "");
+      if (decodedPath) {
+        await deleteObject(ref(storage, decodedPath));
+      }
+    } catch (e) {
+      // não quebra se não conseguir apagar do storage
+      console.log("⚠️ storage delete (images) falhou:", e?.message);
+    }
+  }
+}
+
+
+export async function updateRequestStatus({ requestId, status, userId }) {
+  if (!requestId) throw new Error("requestId obrigatório");
+  if (!status) throw new Error("status obrigatório");
+
+  const db = getFirestore();
+  const ref = doc(db, "requests", requestId);
+
+  await updateDoc(ref, {
+    status,
+    statusUpdatedAt: serverTimestamp(),
+    statusUpdatedBy: userId || null,
+  });
 }
 
 // ✅ apaga arquivo do Storage por URL (se der erro, não quebra)
@@ -116,7 +164,7 @@ export async function createRequest({
 
       location: location || null,
       status: "execucao",
-      createdAt: serverTimestamp(), // ✅ aqui pode
+      createdAt: serverTimestamp(),
     });
 
     return { requestId: newReqRef.id, requestTitle, requestNumber: nextNumber };
@@ -152,41 +200,23 @@ export async function createRequest({
 }
 
 /**
- * ✅ Assina (realtime) solicitações do usuário.
- * - Se passar areaId -> filtra por área
- * - Se NÃO passar areaId -> traz todas as solicitações do usuário
+ * ✅ Assina (realtime) solicitações do usuário
  */
-export function subscribeRequests({ userId, areaId, onChange, max = 50 }) {
-  if (!userId) {
-    console.log("⚠️ subscribeRequests: userId vazio", userId);
-    onChange?.([]);
-    return () => {};
+export function subscribeRequests({ userId, max = 200, onChange }) {
+  const qBase = collection(db, "requests");
+
+  let q = query(qBase, orderBy("createdAt", "desc"), limit(max));
+
+  if (userId) {
+    q = query(qBase, where("userId", "==", userId), orderBy("createdAt", "desc"), limit(max));
   }
 
-  const refCol = collection(db, "requests");
-
-  const constraints = [
-    where("userId", "==", userId),
-    orderBy("createdAt", "desc"),
-    limit(max),
-  ];
-
-  if (areaId) constraints.unshift(where("areaId", "==", areaId));
-
-  const q = query(refCol, ...constraints);
-
-  return onSnapshot(
-    q,
-    (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      onChange?.(data);
-    },
-    (err) => {
-      console.log("❌ subscribeRequests onSnapshot:", err?.code, err?.message);
-      onChange?.([]);
-    }
-  );
+  return onSnapshot(q, (snap) => {
+    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    onChange?.(list);
+  });
 }
+
 
 /**
  * ✅ Assina (realtime) uma solicitação por id
@@ -230,14 +260,39 @@ export async function addProcessImage({ requestId, userId, areaId, uri }) {
 
   const refDoc = doc(db, "requests", requestId);
 
+  const obj = {
+    url,
+    createdAt: Date.now(),
+  };
+
   await updateDoc(refDoc, {
-    processImages: arrayUnion({
-      url,
-      createdAt: Date.now(), // ✅ permitido em array
-    }),
+    processImages: arrayUnion(obj),
   });
 
-  return { url };
+  return obj; // ✅ retorna o objeto exato salvo
+}
+
+/**
+ * ✅ Remove UMA imagem do array processImages
+ * - remove do Firestore (arrayRemove no objeto exato)
+ * - apaga do Storage
+ */
+export async function deleteProcessImage({ requestId, imgObj }) {
+  if (!requestId) throw new Error("deleteProcessImage: requestId obrigatório");
+  if (!imgObj) throw new Error("deleteProcessImage: imgObj obrigatório");
+
+  const refDoc = doc(db, "requests", requestId);
+
+  // 1) remove do firestore
+  await updateDoc(refDoc, {
+    processImages: arrayRemove(imgObj),
+  });
+
+  // 2) remove do storage
+  const url = getImgUri(imgObj);
+  await tryDeleteByUrl(url);
+
+  return { ok: true };
 }
 
 /**
@@ -256,20 +311,20 @@ export async function deleteRequest({ requestId }) {
     const data = snap.data() || {};
 
     const images = Array.isArray(data.images) ? data.images : [];
-    const processImages = Array.isArray(data.processImages)
-      ? data.processImages
-      : [];
+    const processImages = Array.isArray(data.processImages) ? data.processImages : [];
 
-    const urls = [...images.map(getImgUri), ...processImages.map(getImgUri)].filter(
-      Boolean
-    );
+    const urls = [
+      ...images.map(getImgUri),
+      ...processImages.map(getImgUri),
+    ].filter(Boolean);
 
-    // apaga tudo no Storage (paralelo)
     await Promise.all(urls.map(tryDeleteByUrl));
   }
 
-  // por fim, apaga o doc
   await deleteDoc(refDoc);
 
   return { ok: true };
 }
+
+
+//função deletar images

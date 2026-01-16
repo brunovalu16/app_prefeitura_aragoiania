@@ -2,24 +2,29 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
-  Dimensions, FlatList,
+  Dimensions,
+  FlatList,
   Image,
   Modal,
   Pressable,
   ScrollView,
-  View
+  View,
 } from "react-native";
 import { useTheme } from "styled-components/native";
 
-
+import { getAuth } from "firebase/auth";
 
 import ProgressBarStatus from "../../../components/ProgressBarStatus";
 import {
   addProcessImage,
-  deleteRequest,
+  deleteProcessImage,
+  deleteRequestImage,
   subscribeRequestById,
+  updateRequestStatus,
 } from "../../../services/requests";
+
 import { getAuthUserId } from "../../../services/userId";
 
 import {
@@ -33,75 +38,107 @@ import {
   PreviewImage,
   PreviewItem,
   Row,
+  SaveStatusButton, // ✅ ADD
+  SaveStatusText,
   SectionTitle,
   SmallAction,
   SmallActionText,
   ValueText,
 } from "./styles";
 
-
-
-
-
 export default function Replyiluminacao({ navigation, route }) {
   const theme = useTheme();
-
   const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
   const listRef = useRef(null);
 
-const [deleting, setDeleting] = useState(false);
-
   const { requestId } = route?.params || {};
   const [data, setData] = useState(null);
+
+  // ✅ controle de status (admin)
+const [draftStatus, setDraftStatus] = useState("execucao");
+const [savingStatus, setSavingStatus] = useState(false);
+
+
 
   // ✅ preview modal + navegação
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewList, setPreviewList] = useState([]); // lista de URIs
   const [previewIndex, setPreviewIndex] = useState(0);
 
+  // ✅ uploads pendentes (spinner na miniatura)
+  const [pendingProcessThumbs, setPendingProcessThumbs] = useState([]); // [{id, uri}]
+
+//para verificar usuario logado
+const auth = getAuth();
+
+const isAdmin =
+  (auth.currentUser?.email || "").toLowerCase() ===
+  "brunovalu16@gmail.com".toLowerCase();
+
+
+
   function openPreview(list, index = 0) {
-  const safeList = Array.isArray(list) ? list.filter(Boolean) : [];
-  if (!safeList.length) return;
+    const safeList = Array.isArray(list) ? list.filter(Boolean) : [];
+    if (!safeList.length) return;
 
-  const safeIndex = Math.max(0, Math.min(index, safeList.length - 1));
+    const safeIndex = Math.max(0, Math.min(index, safeList.length - 1));
 
-  setPreviewList(safeList);
-  setPreviewIndex(safeIndex);
-  setPreviewOpen(true);
+    setPreviewList(safeList);
+    setPreviewIndex(safeIndex);
+    setPreviewOpen(true);
 
-  // ✅ garante que o FlatList abre exatamente na imagem clicada
-  requestAnimationFrame(() => {
-    listRef.current?.scrollToIndex({
-      index: safeIndex,
-      animated: false,
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index: safeIndex, animated: false });
     });
-  });
-}
+  }
 
-function closePreview() {
-  setPreviewOpen(false);
-  setPreviewList([]);
-  setPreviewIndex(0);
-}
-
+  function closePreview() {
+    setPreviewOpen(false);
+    setPreviewList([]);
+    setPreviewIndex(0);
+  }
 
   const canPrev = previewIndex > 0;
   const canNext = previewIndex < previewList.length - 1;
 
+  function goPrev() {
+    if (!canPrev) return;
+    const next = previewIndex - 1;
+    setPreviewIndex(next);
+    listRef.current?.scrollToIndex({ index: next, animated: true });
+  }
 
- function goPrev() {
-  if (!canPrev) return;
-  const next = previewIndex - 1;
-  setPreviewIndex(next);
-  listRef.current?.scrollToIndex({ index: next, animated: true });
+  function goNext() {
+    if (!canNext) return;
+    const next = previewIndex + 1;
+    setPreviewIndex(next);
+    listRef.current?.scrollToIndex({ index: next, animated: true });
+  }
+
+
+  async function handleSaveStatus() {
+  try {
+    if (!requestId) return Alert.alert("Erro", "requestId inválido.");
+
+    setSavingStatus(true);
+
+    const userId = await getAuthUserId();
+
+    await updateRequestStatus({
+      requestId,
+      status: draftStatus,
+      userId,
+    });
+
+    Alert.alert("Sucesso", "Status atualizado!");
+  } catch (e) {
+    console.log("❌ updateRequestStatus:", e?.code, e?.message);
+    Alert.alert("Erro", e?.message || "Não foi possível salvar o status.");
+  } finally {
+    setSavingStatus(false);
+  }
 }
 
-function goNext() {
-  if (!canNext) return;
-  const next = previewIndex + 1;
-  setPreviewIndex(next);
-  listRef.current?.scrollToIndex({ index: next, animated: true });
-}
 
 
   useEffect(() => {
@@ -114,6 +151,12 @@ function goNext() {
 
     return () => unsub?.();
   }, [requestId]);
+
+
+  useEffect(() => {
+  setDraftStatus(data?.status || "execucao");
+}, [data?.status]);
+
 
   const requestTitle =
     data?.requestTitle || "SOLICITAÇÃO ILUMINAÇÃO PÚBLICA - --";
@@ -143,22 +186,19 @@ function goNext() {
     return img?.url || img?.uri || null;
   }
 
-  const requestImagesRaw = Array.isArray(data?.images) ? data.images : [];
-  const processImagesRaw = Array.isArray(data?.processImages)
+  // ✅ arrays “reais” do Firestore (objetos)
+  const requestImages = Array.isArray(data?.images) ? data.images : [];
+  const processImages = Array.isArray(data?.processImages)
     ? data.processImages
     : [];
 
-  // ✅ listas só de uri, já prontas pro modal e pro grid
-  const requestUris = requestImagesRaw
-    .map(getImgUri)
-    .filter(Boolean);
-
-  const processUris = processImagesRaw
-    .map(getImgUri)
-    .filter(Boolean);
+  // ✅ listas só de uri pro modal
+  const requestUris = requestImages.map(getImgUri).filter(Boolean);
+  const processUris = processImages.map(getImgUri).filter(Boolean);
 
   const MAX_PROCESS_PHOTOS = 5;
-  const canAddProcessPhoto = processUris.length < MAX_PROCESS_PHOTOS;
+  const canAddProcessPhoto =
+    processImages.length + pendingProcessThumbs.length < MAX_PROCESS_PHOTOS;
 
   async function ensureCameraPermission() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -184,10 +224,57 @@ function goNext() {
     return true;
   }
 
+  // ✅ excluir imagem “real” (Firestore + Storage)
+async function handleDeleteImage(field, item) {
+  if (!requestId) return;
+
+  Alert.alert(
+    "Remover foto",
+    "Deseja remover esta foto?",
+    [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Remover",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (field === "processImages") {
+              await deleteProcessImage({
+                requestId,
+                field,
+                imgObj: item,
+              });
+              return;
+            }
+
+            if (field === "images") {
+              await deleteRequestImage({
+                requestId,
+                imgObj: item,
+              });
+              return;
+            }
+
+            // fallback (se passar algum field errado)
+            throw new Error(`Campo inválido para deletar imagem: ${field}`);
+          } catch (e) {
+            console.log("❌ delete image:", e?.code, e?.message);
+            Alert.alert("Erro", "Não foi possível remover a foto.");
+          }
+        },
+      },
+    ],
+    { cancelable: true }
+  );
+}
+
+
+
   async function takePhoto() {
+    let tempId = null;
+
     try {
       if (!requestId) return Alert.alert("Erro", "Solicitação inválida.");
-
       if (!canAddProcessPhoto) {
         Alert.alert(
           "Limite atingido",
@@ -210,6 +297,10 @@ function goNext() {
       const asset = result.assets?.[0];
       if (!asset?.uri) return;
 
+      // ✅ miniatura pendente com spinner
+      tempId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      setPendingProcessThumbs((prev) => [{ id: tempId, uri: asset.uri }, ...prev]);
+
       const userId = await getAuthUserId();
 
       await addProcessImage({
@@ -221,13 +312,18 @@ function goNext() {
     } catch (e) {
       console.log("❌ takePhoto:", e?.code, e?.message);
       Alert.alert("Erro", "Não foi possível enviar a foto.");
+    } finally {
+      if (tempId) {
+        setPendingProcessThumbs((prev) => prev.filter((x) => x.id !== tempId));
+      }
     }
   }
 
   async function pickFromGallery() {
+    let tempId = null;
+
     try {
       if (!requestId) return Alert.alert("Erro", "Solicitação inválida.");
-
       if (!canAddProcessPhoto) {
         Alert.alert(
           "Limite atingido",
@@ -250,6 +346,9 @@ function goNext() {
       const asset = result.assets?.[0];
       if (!asset?.uri) return;
 
+      tempId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      setPendingProcessThumbs((prev) => [{ id: tempId, uri: asset.uri }, ...prev]);
+
       const userId = await getAuthUserId();
 
       await addProcessImage({
@@ -261,41 +360,12 @@ function goNext() {
     } catch (e) {
       console.log("❌ pickFromGallery:", e?.code, e?.message);
       Alert.alert("Erro", "Não foi possível enviar a foto.");
+    } finally {
+      if (tempId) {
+        setPendingProcessThumbs((prev) => prev.filter((x) => x.id !== tempId));
+      }
     }
   }
-
-
-  //função deletar
-  function handleDeleteRequest() {
-  if (!requestId) return;
-
-  Alert.alert(
-    "Excluir solicitação",
-    "Tem certeza que deseja excluir essa solicitação? Essa ação não pode ser desfeita.",
-    [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Excluir",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setDeleting(true);
-            await deleteRequest({ requestId });
-
-            Alert.alert("Pronto", "Solicitação excluída com sucesso.");
-            navigation.goBack(); // ou navigate("Recebeiluminacao")
-          } catch (e) {
-            console.log("❌ deleteRequest:", e?.code, e?.message);
-            Alert.alert("Erro", "Não foi possível excluir a solicitação.");
-          } finally {
-            setDeleting(false);
-          }
-        },
-      },
-    ]
-  );
-}
-
 
   return (
     <ScrollView
@@ -305,22 +375,14 @@ function goNext() {
     >
       <Container>
         <Card>
-          <Row style={{ justifyContent: "space-between" }}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons name="document-text-outline" size={18} color={theme.colors.purple} />
-              <AreaTitle>{requestTitle}</AreaTitle>
-            </View>
-
-            <Pressable
-              onPress={handleDeleteRequest}
-              disabled={deleting}
-              style={{ padding: 6, opacity: deleting ? 0.5 : 1 }}
-              hitSlop={10}
-            >
-              <Ionicons name="trash-outline" size={20} color="#E11D48" />
-            </Pressable>
+          <Row>
+            <Ionicons
+              name="document-text-outline"
+              size={18}
+              color={theme.colors.purple}
+            />
+            <AreaTitle>{requestTitle}</AreaTitle>
           </Row>
-
 
           <Divider />
 
@@ -342,41 +404,65 @@ function goNext() {
           <SectionTitle>Localização</SectionTitle>
           <ValueText>
             {hasLocation
-              ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(
-                  5
-                )}`
+              ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
               : "Não informada"}
           </ValueText>
 
           <Divider />
 
+          {/* ===================== IMAGENS DA SOLICITAÇÃO ===================== */}
           <SectionTitle>Imagens da solicitação</SectionTitle>
 
-          {!requestUris.length ? (
+          {!requestImages.length ? (
             <ValueText>Nenhuma imagem enviada.</ValueText>
           ) : (
             <>
-              <FooterHint>{requestUris.length} imagem(ns) anexada(s)</FooterHint>
+              <FooterHint>{requestImages.length} imagem(ns) anexada(s)</FooterHint>
 
               <PreviewGrid>
-                {requestUris.map((uri, idx) => (
-                  <PreviewItem
-                    key={`${uri}-${idx}`}
-                    activeOpacity={0.9}
-                    onPress={() => openPreview(requestUris, idx)}
-                  >
-                    <PreviewImage
-                      source={{ uri }}
-                      style={{ width: "100%", height: "100%", opacity: 1 }}
-                    />
-                  </PreviewItem>
-                ))}
+                {requestImages.map((item, idx) => {
+                  const uri = getImgUri(item);
+                  if (!uri) return null;
+
+                  return (
+                    <PreviewItem
+                      key={`${uri}-${idx}`}
+                      activeOpacity={0.9}
+                      onPress={() => openPreview(requestUris, idx)}
+                    >
+                      <PreviewImage
+                        source={{ uri }}
+                        style={{ width: "100%", height: "100%", opacity: 1 }}
+                      />
+
+                      {/* ✅ X para excluir */}
+                      <Pressable
+                        onPress={() => handleDeleteImage("images", item)}
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: "rgba(0,0,0,0.55)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        hitSlop={10}
+                      >
+                        <Ionicons name="close" size={16} color="#fff" />
+                      </Pressable>
+                    </PreviewItem>
+                  );
+                })}
               </PreviewGrid>
             </>
           )}
 
           <Divider />
 
+          {/* ===================== FOTOS DO PROCESSO ===================== */}
           <SectionTitle>Fotos do processo de execução</SectionTitle>
 
           <ActionRow>
@@ -399,40 +485,124 @@ function goNext() {
             </SmallAction>
           </ActionRow>
 
-          {!processUris.length ? (
+          {/* ✅ grid do processo: pendentes (spinner) + reais (com X) */}
+          {!processImages.length && !pendingProcessThumbs.length ? (
             <ValueText style={{ marginTop: 10 }}>
               Nenhuma foto do processo enviada.
             </ValueText>
           ) : (
             <>
-              <FooterHint>{processUris.length} foto(s) do processo</FooterHint>
+              <FooterHint>
+                {processImages.length + pendingProcessThumbs.length} foto(s) do processo
+              </FooterHint>
 
               <PreviewGrid>
-                {processUris.map((uri, idx) => (
-                  <PreviewItem
-                    key={`${uri}-process-${idx}`}
-                    activeOpacity={0.9}
-                    onPress={() => openPreview(processUris, idx)}
-                  >
+                {/* pendentes primeiro */}
+                {pendingProcessThumbs.map((p) => (
+                  <PreviewItem key={`pending-${p.id}`} activeOpacity={1}>
                     <PreviewImage
-                      source={{ uri }}
-                      style={{ width: "100%", height: "100%", opacity: 1 }}
+                      source={{ uri: p.uri }}
+                      style={{ width: "100%", height: "100%", opacity: 0.65 }}
                     />
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <ActivityIndicator />
+                    </View>
                   </PreviewItem>
                 ))}
+
+                {/* reais */}
+                {processImages.map((item, idx) => {
+                  const uri = getImgUri(item);
+                  if (!uri) return null;
+
+                  const modalIndex = processUris.indexOf(uri);
+
+                  return (
+                    <PreviewItem
+                      key={`${uri}-process-${idx}`}
+                      activeOpacity={0.9}
+                      onPress={() =>
+                        openPreview(processUris, modalIndex >= 0 ? modalIndex : idx)
+                      }
+                    >
+                      <PreviewImage
+                        source={{ uri }}
+                        style={{ width: "100%", height: "100%", opacity: 1 }}
+                      />
+
+                      {/* ✅ X para excluir */}
+                      <Pressable
+                        onPress={() => handleDeleteImage("processImages", item)}
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: "rgba(0,0,0,0.55)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        hitSlop={10}
+                      >
+                        <Ionicons name="close" size={16} color="#fff" />
+                      </Pressable>
+                    </PreviewItem>
+                  );
+                })}
               </PreviewGrid>
             </>
           )}
 
+
           <Divider />
 
           <SectionTitle>Status da solicitação</SectionTitle>
-          <ProgressBarStatus status={data?.status || "execucao"} />
+
+          <ProgressBarStatus
+            status={draftStatus}
+            isAdmin={isAdmin}
+            onChangeStatus={setDraftStatus}
+          />
+
+          {isAdmin && (
+            <SaveStatusButton
+              onPress={handleSaveStatus}
+              disabled={savingStatus || draftStatus === (data?.status || "execucao")}
+            >
+              {savingStatus ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <SaveStatusText>SALVAR STATUS</SaveStatusText>
+              )}
+            </SaveStatusButton>
+          )}
 
           <Divider />
+
+          
+
+
+
+          
+          
+         
+
+
         </Card>
 
-        {/* ✅ MODAL COM SETAS */}
+        {/* ===================== MODAL CARROSSEL ===================== */}
         <Modal
           visible={previewOpen}
           transparent
@@ -440,13 +610,12 @@ function goNext() {
           onRequestClose={closePreview}
         >
           <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)" }}>
-            {/* ✅ toque no fundo fecha (fica atrás de tudo) */}
+            {/* toque no fundo fecha */}
             <Pressable
               onPress={closePreview}
               style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }}
             />
 
-            {/* ✅ CARROSSEL */}
             <FlatList
               ref={listRef}
               data={previewList}
@@ -460,14 +629,7 @@ function goNext() {
                 index,
               })}
               initialScrollIndex={previewIndex}
-              onScrollToIndexFailed={(info) => {
-                setTimeout(() => {
-                  listRef.current?.scrollToOffset({
-                    offset: info.averageItemLength * info.index,
-                    animated: false,
-                  });
-                }, 50);
-              }}
+              onScrollToIndexFailed={() => {}}
               onMomentumScrollEnd={(e) => {
                 const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
                 setPreviewIndex(idx);
@@ -492,7 +654,7 @@ function goNext() {
               )}
             />
 
-            {/* ✅ X fechar */}
+            {/* X fechar */}
             <Pressable
               onPress={closePreview}
               style={{
@@ -511,7 +673,7 @@ function goNext() {
               <Ionicons name="close" size={22} color="#fff" />
             </Pressable>
 
-            {/* ✅ indicador 1/5 */}
+            {/* indicador 1/N */}
             <View
               style={{
                 position: "absolute",
@@ -528,7 +690,7 @@ function goNext() {
               </ValueText>
             </View>
 
-            {/* ✅ seta esquerda */}
+            {/* seta esquerda */}
             <Pressable
               onPress={goPrev}
               disabled={!canPrev}
@@ -550,7 +712,7 @@ function goNext() {
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </Pressable>
 
-            {/* ✅ seta direita */}
+            {/* seta direita */}
             <Pressable
               onPress={goNext}
               disabled={!canNext}
@@ -573,7 +735,6 @@ function goNext() {
             </Pressable>
           </View>
         </Modal>
-
       </Container>
     </ScrollView>
   );

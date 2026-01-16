@@ -1,20 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 
 import {
-    BarWrap,
-    CheckBtn,
-    ChecksRow,
-    CheckText,
-    GradientFill,
-    Label,
-    LabelsRow,
-    ThumbInner,
-    ThumbOuter,
-    Track,
-    TrackRest,
+  BarWrap,
+  CheckBtn,
+  ChecksRow,
+  CheckText,
+  GradientFill,
+  Label,
+  LabelsRow,
+  ThumbInner,
+  ThumbOuter,
+  Track,
+  TrackRest,
 } from "./styles";
 
 const STEPS = ["analise", "pendente", "execucao", "concluida"];
@@ -39,6 +39,7 @@ export default function ProgressBarStatus({
   onChangeStatus, // opcional: para salvar no backend futuramente
 }) {
   const [localStatus, setLocalStatus] = useState(status);
+  
 
   // se você quiser sempre controlar de fora, pode remover localStatus
   const current = localStatus;
@@ -60,6 +61,12 @@ export default function ProgressBarStatus({
     // tudo até o status atual fica marcado
     return STEPS.indexOf(step) <= STEPS.indexOf(current);
   }
+
+  //faz parte da verificação do usuario logado
+  useEffect(() => {
+  setLocalStatus(status);
+}, [status]);
+
 
   return (
     <View>

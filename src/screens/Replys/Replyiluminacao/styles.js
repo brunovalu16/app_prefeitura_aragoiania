@@ -115,3 +115,21 @@ export const SmallActionText = styled.Text`
   font-weight: 800;
   margin-left: 6px;
 `;
+
+
+export const SaveStatusButton = styled.Pressable`
+  margin-top: 12px;
+  height: 46px;
+  border-radius: 14px;
+  align-items: center;
+  justify-content: center;
+  background-color: #3A0B6C;
+`;
+
+
+export const SaveStatusText = styled.Text`
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.6px;
+`;
