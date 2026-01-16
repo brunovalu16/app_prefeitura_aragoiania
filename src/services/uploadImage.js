@@ -16,6 +16,8 @@ function genToken() {
 }
 
 export async function uploadImageAsync({ uri, path }) {
+  console.log("✅ uploadImageAsync REST ATIVO:", uri, "->", path);
+
   if (!uri) throw new Error("uploadImageAsync: uri obrigatório");
   if (!path) throw new Error("uploadImageAsync: path obrigatório");
 
@@ -28,11 +30,11 @@ export async function uploadImageAsync({ uri, path }) {
   const idToken = await user.getIdToken(true);
 
   const name = encodeURIComponent(path);
-
-  // ✅ endpoint correto (sem uploadType=media)
-  const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${name}`;
+  const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=media&name=${name}`;
 
   const contentType = guessContentType(uri);
+
+  // ✅ token que vira link público
   const token = genToken();
 
   console.log("🪣 bucket(app):", bucket);
@@ -43,8 +45,6 @@ export async function uploadImageAsync({ uri, path }) {
     headers: {
       Authorization: `Bearer ${idToken}`,
       "Content-Type": contentType,
-
-      // ✅ necessário para gerar link com token
       "x-goog-meta-firebaseStorageDownloadTokens": token,
     },
   });
@@ -55,18 +55,16 @@ export async function uploadImageAsync({ uri, path }) {
     );
   }
 
-  // ✅ parse seguro
-  let objectName = path;
-  try {
-    const json = JSON.parse(result.body);
-    objectName = json?.name || path;
-  } catch {
-    // se não vier json, usa o path mesmo
-  }
+  const json = JSON.parse(result.body || "{}");
+  const objectName = json?.name || path;
+
+  // ✅ se o firebase devolver downloadTokens, usa ele (mais seguro)
+  const responseTokenRaw = json?.downloadTokens;
+  const finalToken = (responseTokenRaw || token).split(",")[0];
 
   const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(
     objectName
-  )}?alt=media&token=${token}`;
+  )}?alt=media&token=${finalToken}`;
 
   return downloadURL;
 }

@@ -187,6 +187,8 @@ useEffect(() => {
 
 
 async function handleSend() {
+  if (loading) return;
+
   try {
     Keyboard.dismiss();
 
@@ -196,10 +198,9 @@ async function handleSend() {
       return;
     }
 
-    if (loading) return; // evita duplo clique
     setLoading(true);
 
-    const userId = await getAuthUserId(); // ✅ usa await (fica compatível com as 2 versões)
+    const userId = getAuthUserId(); // ✅ uid real
 
     const { requestId } = await createRequest({
       userId,
@@ -208,19 +209,21 @@ async function handleSend() {
       descricao: descricaoTrim,
       enderecoPoste,
       numeroPoste,
-      images,
+      images,   // ✅ agora faz upload e só retorna quando terminar
       location,
     });
 
+    // ✅ só abre sucesso DEPOIS do upload + updateDoc das imagens
     setSuccessRequestId(requestId);
     setSuccessOpen(true);
-  } catch (_err) {
-    console.log("❌ handleSend:", _err?.code, _err?.message);
+  } catch (err) {
+    console.log("❌ handleSend:", err?.code, err?.message);
     Alert.alert("Erro", "Não foi possível enviar sua solicitação.");
   } finally {
     setLoading(false);
   }
 }
+
 
 
 

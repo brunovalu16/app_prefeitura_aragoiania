@@ -1,7 +1,9 @@
 import {
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
+  getDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -12,15 +14,49 @@ import {
   where,
 } from "firebase/firestore";
 
-import { db } from "./firebase";
+import { deleteObject, ref as storageRef } from "firebase/storage";
+
+import { db, storage } from "./firebase";
 import { uploadImageAsync } from "./uploadImage";
 
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
 
+// ✅ helper: pega url de [{url}] | [{uri}] | string
+function getImgUri(img) {
+  if (!img) return null;
+  if (typeof img === "string") return img;
+  return img.url || img.uri || null;
+}
+
+// ✅ apaga arquivo do Storage por URL (se der erro, não quebra)
+async function tryDeleteByUrl(url) {
+  try {
+    if (!url || typeof url !== "string") return;
+
+    // só apaga se for URL do Firebase Storage
+    if (!url.includes("firebasestorage.googleapis.com")) return;
+
+    const decoded = decodeURIComponent(url);
+
+    // extrai o "object path" entre "/o/" e "?"
+    const marker = "/o/";
+    const i = decoded.indexOf(marker);
+    if (i === -1) return;
+
+    const rest = decoded.slice(i + marker.length);
+    const objectPath = rest.split("?")[0];
+    if (!objectPath) return;
+
+    await deleteObject(storageRef(storage, objectPath));
+  } catch (_e) {
+    // ignora: arquivo pode já ter sido deletado, permissão, etc.
+  }
+}
+
 /**
- * Cria solicitação com numeração sequencial por userId+areaId
+ * ✅ Cria solicitação com numeração sequencial por userId+areaId
  * ✅ Upload das imagens para Storage e salva URLs no Firestore
  * ⚠️ SEM serverTimestamp dentro de arrays
  */
@@ -53,7 +89,7 @@ export async function createRequest({
     })
     .filter(Boolean);
 
-  // ✅ 1) cria doc vazio (images/processImages) dentro da transaction
+  // ✅ 1) cria doc dentro da transaction (sem images ainda)
   const result = await runTransaction(db, async (tx) => {
     const counterSnap = await tx.get(counterRef);
     const lastNumber = counterSnap.exists()
@@ -107,10 +143,7 @@ export async function createRequest({
     const filePath = `requests/${userId}/${areaId}/${result.requestId}/request/${Date.now()}_${i}.jpg`;
     const url = await uploadImageAsync({ uri, path: filePath });
 
-    uploaded.push({
-      url,
-      createdAt: Date.now(), // ✅ permitido em array
-    });
+    uploaded.push({ url, createdAt: Date.now() });
   }
 
   await updateDoc(newReqRef, { images: uploaded });
@@ -119,7 +152,9 @@ export async function createRequest({
 }
 
 /**
- * Assina (realtime) solicitações do usuário.
+ * ✅ Assina (realtime) solicitações do usuário.
+ * - Se passar areaId -> filtra por área
+ * - Se NÃO passar areaId -> traz todas as solicitações do usuário
  */
 export function subscribeRequests({ userId, areaId, onChange, max = 50 }) {
   if (!userId) {
@@ -154,7 +189,7 @@ export function subscribeRequests({ userId, areaId, onChange, max = 50 }) {
 }
 
 /**
- * Assina (realtime) uma solicitação por id
+ * ✅ Assina (realtime) uma solicitação por id
  */
 export function subscribeRequestById({ requestId, onChange }) {
   if (!requestId) {
@@ -198,9 +233,43 @@ export async function addProcessImage({ requestId, userId, areaId, uri }) {
   await updateDoc(refDoc, {
     processImages: arrayUnion({
       url,
-      createdAt: Date.now(), // ✅ permitido
+      createdAt: Date.now(), // ✅ permitido em array
     }),
   });
 
   return { url };
+}
+
+/**
+ * ✅ Deleta solicitação:
+ * - Lê doc para pegar URLs
+ * - Apaga imagens do Storage (images + processImages)
+ * - Deleta doc no Firestore
+ */
+export async function deleteRequest({ requestId }) {
+  if (!requestId) throw new Error("deleteRequest: requestId obrigatório");
+
+  const refDoc = doc(db, "requests", requestId);
+  const snap = await getDoc(refDoc);
+
+  if (snap.exists()) {
+    const data = snap.data() || {};
+
+    const images = Array.isArray(data.images) ? data.images : [];
+    const processImages = Array.isArray(data.processImages)
+      ? data.processImages
+      : [];
+
+    const urls = [...images.map(getImgUri), ...processImages.map(getImgUri)].filter(
+      Boolean
+    );
+
+    // apaga tudo no Storage (paralelo)
+    await Promise.all(urls.map(tryDeleteByUrl));
+  }
+
+  // por fim, apaga o doc
+  await deleteDoc(refDoc);
+
+  return { ok: true };
 }

@@ -70,7 +70,6 @@ export const PreviewGrid = styled.View`
   margin-top: 10px;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 10px;
 `;
 
 export const PreviewItem = styled.TouchableOpacity`
@@ -78,12 +77,21 @@ export const PreviewItem = styled.TouchableOpacity`
   aspect-ratio: 1;
   border-radius: 12px;
   overflow: hidden;
+  background: #111;
+
+  margin-right: 10px;
+  margin-bottom: 10px;
 `;
 
-export const PreviewImage = styled.Image`
+
+export const PreviewImage = styled.Image.attrs({
+  resizeMode: "cover",
+})`
   width: 100%;
   height: 100%;
+  opacity: 1;
 `;
+
 
 export const ActionRow = styled.View`
   flex-direction: row;
