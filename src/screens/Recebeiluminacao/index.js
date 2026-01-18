@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -13,7 +14,9 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import AreaRequestsCard from "../../components/AreaRequestsCard";
 import { auth } from "../../services/firebase";
-import { subscribeRequests } from "../../services/requests";
+import { deleteRequest, subscribeRequests } from "../../services/requests";
+
+
 
 import { Container } from "./styles";
 
@@ -23,6 +26,42 @@ const AREA_REPLY_ROUTE = {
   saude: "ReplySaude",
   defesa: "ReplyDefesa",
 };
+
+
+
+//função deletar
+async function handleDeleteRequest(request) {
+  try {
+    const status = (request?.status || "").toLowerCase();
+
+    if (status !== "analise") {
+      return Alert.alert(
+        "Não é possível excluir",
+        "Essa solicitação não pode ser deletada pois está em andamento."
+      );
+    }
+
+    Alert.alert(
+      "Excluir solicitação",
+      "Tem certeza que deseja excluir? Essa ação não pode ser desfeita.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            await deleteRequest({ requestId: request.id });
+          },
+        },
+      ]
+    );
+  } catch (e) {
+    console.log("❌ deleteRequest:", e?.code, e?.message);
+    Alert.alert("Erro", "Não foi possível excluir a solicitação.");
+  }
+}
+
+
 
 // ✅ helper de navegação
 function navigateToReply(navigation, request) {
@@ -79,36 +118,42 @@ useEffect(() => {
 
   // ✅ agrupa solicitações por área
   const groupedByArea = useMemo(() => {
-    const map = {};
+  const map = {};
 
-    (requests || []).forEach((r) => {
-      const areaId = r?.areaId || "sem_area";
+  // ✅ usuário não vê concluída
+  const visibleRequests = (requests || []).filter(
+    (r) => (r?.status || "").toLowerCase() !== "concluida"
+  );
 
-      if (!map[areaId]) {
-        map[areaId] = {
-          areaId,
-          areaLabel: r?.areaLabel || String(areaId).toUpperCase(),
-          requests: [],
-        };
-      }
+  visibleRequests.forEach((r) => {
+    const areaId = r?.areaId || "sem_area";
 
-      map[areaId].requests.push(r);
+    if (!map[areaId]) {
+      map[areaId] = {
+        areaId,
+        areaLabel: r?.areaLabel || String(areaId).toUpperCase(),
+        requests: [],
+      };
+    }
+
+    map[areaId].requests.push(r);
+  });
+
+  const arr = Object.values(map).sort((a, b) =>
+    (a.areaLabel || "").localeCompare(b.areaLabel || "")
+  );
+
+  arr.forEach((g) => {
+    g.requests.sort((a, b) => {
+      const ta = a?.createdAt?.toMillis?.() ?? 0;
+      const tb = b?.createdAt?.toMillis?.() ?? 0;
+      return tb - ta;
     });
+  });
 
-    const arr = Object.values(map).sort((a, b) =>
-      (a.areaLabel || "").localeCompare(b.areaLabel || "")
-    );
+  return arr;
+}, [requests]);
 
-    arr.forEach((g) => {
-      g.requests.sort((a, b) => {
-        const ta = a?.createdAt?.toMillis?.() ?? 0;
-        const tb = b?.createdAt?.toMillis?.() ?? 0;
-        return tb - ta;
-      });
-    });
-
-    return arr;
-  }, [requests]);
 
   const showLoading = authLoading || (!!uid && dataLoading);
 
@@ -145,6 +190,7 @@ useEffect(() => {
                   areaLabel={group.areaLabel}
                   requests={group.requests}
                   onPressRequest={(r) => navigateToReply(navigation, r)}
+                  onDeleteRequest={handleDeleteRequest} // ✅ ADD
                 />
               ))
             )}

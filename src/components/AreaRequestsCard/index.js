@@ -19,11 +19,12 @@ export default function AreaRequestsCard({
   areaLabel = "ÁREA",
   requests = [],
   onPressRequest,
+  onDeleteRequest,
   defaultOpen = false,
-  visibleCards = 3,     // ✅ quantos cards completos
-  peekRatio = 0.25,     // ✅ quanto do próximo card aparece (0.2~0.35 fica bom)
-  minListHeight = 180,  // ✅ fallback mínimo
-  maxListHeight = 380,  // ✅ trava pra não ficar gigante
+  visibleCards = 3, // ✅ quantos cards completos
+  peekRatio = 0.25, // ✅ quanto do próximo card aparece (0.2~0.35 fica bom)
+  minListHeight = 180, // ✅ fallback mínimo
+  maxListHeight = 380, // ✅ trava pra não ficar gigante
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(defaultOpen);
@@ -47,10 +48,7 @@ export default function AreaRequestsCard({
     <>
       {/* ✅ CARD MESTRE (BRANCO) */}
       <CardMaster>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => setOpen((v) => !v)}
-        >
+        <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen((v) => !v)}>
           <HeaderRow>
             <HeaderLeft>
               <Ionicons
@@ -97,8 +95,10 @@ export default function AreaRequestsCard({
                 <HomeLastRequestCard
                   title="MINHAS SOLICITAÇÕES"
                   subtitle={r.requestTitle}
+                  status={r.status || "execucao"} // ✅ status individual
                   onPress={() => onPressRequest?.(r)}
                   onMenuPress={() => {}}
+                  onDeletePress={() => onDeleteRequest?.(r)} // ✅ sempre chama
                 />
               </View>
             ))}

@@ -1,5 +1,9 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeHeader from "../components/HomeHeader";
+import AdminAreas from "../screens/AdminAreas";
+import AdminInboxArea from "../screens/AdminInboxArea";
+import AdminUserAreas from "../screens/AdminUserAreas";
+import AdminUsersInbox from "../screens/AdminUsersInbox";
 import Areas from "../screens/Areas";
 import CepPreenchido from "../screens/CepPreenchido";
 import DocumentCameraScreen from "../screens/DocumentCameraScreen";
@@ -8,6 +12,7 @@ import Recebeiluminacao from "../screens/Recebeiluminacao";
 import Replyiluminacao from "../screens/Replys/Replyiluminacao";
 import Solicitar from "../screens/Solicitar";
 import User from "../screens/User";
+
 
 
 
@@ -28,6 +33,10 @@ export default function HomeStack() {
       <Stack.Screen name="User" component={User} />
       <Stack.Screen name="DocumentCamera" component={DocumentCameraScreen} />
       <Stack.Screen name="Recebeiluminacao" component={Recebeiluminacao} />
+      <Stack.Screen name="AdminAreas" component={AdminAreas} />
+      <Stack.Screen name="AdminInboxArea" component={AdminInboxArea} />
+    <Stack.Screen name="AdminUsersInbox" component={AdminUsersInbox} />
+    <Stack.Screen name="AdminUserAreas" component={AdminUserAreas} />
     </Stack.Navigator>
   );
 }

@@ -1,0 +1,16 @@
+export function subscribeRequestsByArea({ areaId, max = 300, onChange }) {
+  if (!areaId) throw new Error("subscribeRequestsByArea: areaId obrigatório");
+
+  const qBase = collection(db, "requests");
+  const q = query(
+    qBase,
+    where("areaId", "==", areaId),
+    orderBy("createdAt", "desc"),
+    limit(max)
+  );
+
+  return onSnapshot(q, (snap) => {
+    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    onChange?.(list);
+  });
+}

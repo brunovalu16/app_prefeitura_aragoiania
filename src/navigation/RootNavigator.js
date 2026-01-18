@@ -4,6 +4,8 @@ import Cadastro from "../screens/Cadastro";
 import Login from "../screens/Login";
 import Recebeiluminacao from "../screens/Recebeiluminacao";
 import Replyiluminacao from "../screens/Replys/Replyiluminacao";
+import AdminAreas from "./../screens/AdminAreas";
+import AdminInboxArea from "./../screens/AdminInboxArea";
 import User from "./../screens/User";
 import AppTabs from "./AppTabs";
 
@@ -20,6 +22,8 @@ export default function RootNavigator() {
       <Stack.Screen name="Replyiluminacao" component={Replyiluminacao} />
       <Stack.Screen name="User" component={User} />
       <Stack.Screen name="Recebeiluminacao" component={Recebeiluminacao} />
+      <Stack.Screen name="AdminAreas" component={AdminAreas} />
+      <Stack.Screen name="AdminInboxArea" component={AdminInboxArea} />
     </Stack.Navigator>
   );
 }

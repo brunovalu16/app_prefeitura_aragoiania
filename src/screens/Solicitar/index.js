@@ -17,6 +17,7 @@ import MapModal from "../../components/MapModal";
 import PrimaryButtonenviarareas from "../../components/PrimaryButtonenviarareas";
 import PrimaryButtonlocalizacao from "../../components/PrimaryButtonlocalizacao";
 
+import { getAuth } from "firebase/auth";
 import { createRequest } from "../../services/requests";
 import { getAuthUserId } from "../../services/userId";
 
@@ -200,20 +201,23 @@ async function handleSend() {
 
     setLoading(true);
 
-    const userId = getAuthUserId(); // ✅ uid real
+    const userId = await getAuthUserId(); // ✅ AGORA COM AWAIT
+
+    const auth = getAuth();
+    const userEmail = (auth.currentUser?.email || "").trim().toLowerCase(); // ✅ email real
 
     const { requestId } = await createRequest({
       userId,
+      userEmail, // ✅ envia pro backend
       areaId: "iluminacao",
       areaLabel: "ILUMINAÇÃO PÚBLICA",
       descricao: descricaoTrim,
       enderecoPoste,
       numeroPoste,
-      images,   // ✅ agora faz upload e só retorna quando terminar
+      images,
       location,
     });
 
-    // ✅ só abre sucesso DEPOIS do upload + updateDoc das imagens
     setSuccessRequestId(requestId);
     setSuccessOpen(true);
   } catch (err) {
@@ -223,6 +227,7 @@ async function handleSend() {
     setLoading(false);
   }
 }
+
 
 
 

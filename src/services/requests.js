@@ -13,16 +13,14 @@ import {
   runTransaction,
   serverTimestamp,
   updateDoc,
-  where
+  where,
 } from "firebase/firestore";
 
 import { deleteObject, getStorage, ref, ref as storageRef } from "firebase/storage";
 import { db, storage } from "./firebase";
 import { uploadImageAsync } from "./uploadImage";
 
-
-
-
+import { getAuth } from "firebase/auth";
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -57,21 +55,19 @@ export async function deleteRequestImage({ requestId, imgObj }) {
         await deleteObject(ref(storage, decodedPath));
       }
     } catch (e) {
-      // não quebra se não conseguir apagar do storage
       console.log("⚠️ storage delete (images) falhou:", e?.message);
     }
   }
 }
-
 
 export async function updateRequestStatus({ requestId, status, userId }) {
   if (!requestId) throw new Error("requestId obrigatório");
   if (!status) throw new Error("status obrigatório");
 
   const db = getFirestore();
-  const ref = doc(db, "requests", requestId);
+  const refDoc = doc(db, "requests", requestId);
 
-  await updateDoc(ref, {
+  await updateDoc(refDoc, {
     status,
     statusUpdatedAt: serverTimestamp(),
     statusUpdatedBy: userId || null,
@@ -82,13 +78,10 @@ export async function updateRequestStatus({ requestId, status, userId }) {
 async function tryDeleteByUrl(url) {
   try {
     if (!url || typeof url !== "string") return;
-
-    // só apaga se for URL do Firebase Storage
     if (!url.includes("firebasestorage.googleapis.com")) return;
 
     const decoded = decodeURIComponent(url);
 
-    // extrai o "object path" entre "/o/" e "?"
     const marker = "/o/";
     const i = decoded.indexOf(marker);
     if (i === -1) return;
@@ -98,18 +91,16 @@ async function tryDeleteByUrl(url) {
     if (!objectPath) return;
 
     await deleteObject(storageRef(storage, objectPath));
-  } catch (_e) {
-    // ignora: arquivo pode já ter sido deletado, permissão, etc.
-  }
+  } catch (_e) {}
 }
 
 /**
  * ✅ Cria solicitação com numeração sequencial por userId+areaId
  * ✅ Upload das imagens para Storage e salva URLs no Firestore
- * ⚠️ SEM serverTimestamp dentro de arrays
  */
 export async function createRequest({
   userId,
+  userEmail, // opcional (vamos garantir abaixo)
   areaId,
   areaLabel,
   descricao,
@@ -121,6 +112,14 @@ export async function createRequest({
   if (!userId) throw new Error("createRequest: userId obrigatório");
   if (!areaId) throw new Error("createRequest: areaId obrigatório");
   if (!areaLabel) throw new Error("createRequest: areaLabel obrigatório");
+
+  // ✅ garante email (se não veio, pega do auth)
+  const auth = getAuth();
+  const safeUserEmail = String(
+    userEmail || auth.currentUser?.email || ""
+  )
+    .trim()
+    .toLowerCase();
 
   const counterId = `${userId}_${areaId}`;
   const counterRef = doc(db, "counters", counterId);
@@ -149,23 +148,31 @@ export async function createRequest({
 
     tx.set(counterRef, { lastNumber: nextNumber }, { merge: true });
 
-    tx.set(newReqRef, {
-      userId,
-      areaId,
-      areaLabel,
-      requestNumber: nextNumber,
-      requestTitle,
-      descricao: (descricao || "").trim(),
-      enderecoPoste: (enderecoPoste || "").trim(),
-      numeroPoste: (numeroPoste || "").trim(),
+   tx.set(newReqRef, {
+  userId,
+  userEmail: safeUserEmail, // ✅ correto
+  areaId,
+  areaLabel,
 
-      images: [], // ✅ preenche depois com URLs
-      processImages: [], // ✅ já inicia
+  // ✅ caminho lógico (não cria coleção, só salva string)
+  path: safeUserEmail
+    ? `solicitacoes/${safeUserEmail}/area/${areaId}`
+    : `solicitacoes/sem-email/area/${areaId}`,
 
-      location: location || null,
-      status: "execucao",
-      createdAt: serverTimestamp(),
-    });
+  requestNumber: nextNumber,
+  requestTitle,
+  descricao: (descricao || "").trim(),
+  enderecoPoste: (enderecoPoste || "").trim(),
+  numeroPoste: (numeroPoste || "").trim(),
+
+  images: [],
+  processImages: [],
+
+  location: location || null,
+  status: "execucao",
+  createdAt: serverTimestamp(),
+});
+
 
     return { requestId: newReqRef.id, requestTitle, requestNumber: nextNumber };
   });
@@ -179,7 +186,6 @@ export async function createRequest({
   for (let i = 0; i < imageUris.length; i++) {
     const uri = imageUris[i];
 
-    // se já for url http(s), mantém
     if (
       typeof uri === "string" &&
       (uri.startsWith("http://") || uri.startsWith("https://"))
@@ -208,7 +214,12 @@ export function subscribeRequests({ userId, max = 200, onChange }) {
   let q = query(qBase, orderBy("createdAt", "desc"), limit(max));
 
   if (userId) {
-    q = query(qBase, where("userId", "==", userId), orderBy("createdAt", "desc"), limit(max));
+    q = query(
+      qBase,
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+      limit(max)
+    );
   }
 
   return onSnapshot(q, (snap) => {
@@ -216,7 +227,6 @@ export function subscribeRequests({ userId, max = 200, onChange }) {
     onChange?.(list);
   });
 }
-
 
 /**
  * ✅ Assina (realtime) uma solicitação por id
@@ -245,8 +255,6 @@ export function subscribeRequestById({ requestId, onChange }) {
 
 /**
  * ✅ Anexa foto do processo:
- * - Upload no Storage
- * - Salva em processImages: [{ url, createdAt }]
  */
 export async function addProcessImage({ requestId, userId, areaId, uri }) {
   if (!requestId) throw new Error("addProcessImage: requestId obrigatório");
@@ -260,22 +268,17 @@ export async function addProcessImage({ requestId, userId, areaId, uri }) {
 
   const refDoc = doc(db, "requests", requestId);
 
-  const obj = {
-    url,
-    createdAt: Date.now(),
-  };
+  const obj = { url, createdAt: Date.now() };
 
   await updateDoc(refDoc, {
     processImages: arrayUnion(obj),
   });
 
-  return obj; // ✅ retorna o objeto exato salvo
+  return obj;
 }
 
 /**
  * ✅ Remove UMA imagem do array processImages
- * - remove do Firestore (arrayRemove no objeto exato)
- * - apaga do Storage
  */
 export async function deleteProcessImage({ requestId, imgObj }) {
   if (!requestId) throw new Error("deleteProcessImage: requestId obrigatório");
@@ -283,12 +286,10 @@ export async function deleteProcessImage({ requestId, imgObj }) {
 
   const refDoc = doc(db, "requests", requestId);
 
-  // 1) remove do firestore
   await updateDoc(refDoc, {
     processImages: arrayRemove(imgObj),
   });
 
-  // 2) remove do storage
   const url = getImgUri(imgObj);
   await tryDeleteByUrl(url);
 
@@ -296,10 +297,7 @@ export async function deleteProcessImage({ requestId, imgObj }) {
 }
 
 /**
- * ✅ Deleta solicitação:
- * - Lê doc para pegar URLs
- * - Apaga imagens do Storage (images + processImages)
- * - Deleta doc no Firestore
+ * ✅ Deleta solicitação (apaga do banco + storage)
  */
 export async function deleteRequest({ requestId }) {
   if (!requestId) throw new Error("deleteRequest: requestId obrigatório");
@@ -313,10 +311,7 @@ export async function deleteRequest({ requestId }) {
     const images = Array.isArray(data.images) ? data.images : [];
     const processImages = Array.isArray(data.processImages) ? data.processImages : [];
 
-    const urls = [
-      ...images.map(getImgUri),
-      ...processImages.map(getImgUri),
-    ].filter(Boolean);
+    const urls = [...images.map(getImgUri), ...processImages.map(getImgUri)].filter(Boolean);
 
     await Promise.all(urls.map(tryDeleteByUrl));
   }
@@ -326,5 +321,29 @@ export async function deleteRequest({ requestId }) {
   return { ok: true };
 }
 
+// ✅ ADMIN — solicitações por ÁREA
+export function subscribeRequestsByArea({ areaId, onChange }) {
+  if (!areaId) {
+    console.log("⚠️ subscribeRequestsByArea: areaId vazio");
+    onChange?.([]);
+    return () => {};
+  }
 
-//função deletar images
+  const q = query(
+    collection(db, "requests"),
+    where("areaId", "==", areaId),
+    orderBy("createdAt", "desc")
+  );
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      onChange?.(list);
+    },
+    (err) => {
+      console.log("❌ subscribeRequestsByArea:", err?.code, err?.message);
+      onChange?.([]);
+    }
+  );
+}

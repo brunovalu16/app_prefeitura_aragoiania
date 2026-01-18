@@ -1,14 +1,37 @@
+import { onAuthStateChanged } from "firebase/auth";
+import { useEffect, useState } from "react";
+
 import HomeBigCarousel from "../../components/HomeBigCarousel";
 import HomeRequestsList from "../../components/HomeRequestsList";
+import { auth } from "../../services/firebase";
+
 import { Container } from "./styles";
 
+const ADMIN_EMAIL = "brunovalu16@gmail.com";
+
 export default function Home({ navigation }) {
-  const items = [
-    { id: "1", title: "MINHAS SOLICITAÇÕES", subtitle: "ILUMINAÇÃO PÚBLICA", route: "Replyiluminacao" },
-    { id: "2", title: "MINHAS SOLICITAÇÕES", subtitle: "ÁREA DA SAÚDE", route: "ReplySaude" },
-    { id: "3", title: "MINHAS SOLICITAÇÕES", subtitle: "PODA DE ÁRVORES", route: "ReplyPoda" },
-    { id: "4", title: "MINHAS SOLICITAÇÕES", subtitle: "TAPA BURACOS", route: "ReplyTapaBuracos" },
-  ];
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      const email = (user?.email || "").toLowerCase();
+      setIsAdmin(email === ADMIN_EMAIL.toLowerCase());
+    });
+
+    return () => unsub();
+  }, []);
+
+  // ✅ SOMENTE ADMIN (sem mock de usuário)
+  const items = isAdmin
+    ? [
+        {
+          id: "admin-1",
+          title: "PAINEL ADMIN",
+          subtitle: "CAIXA DE ENTRADA POR ÁREA",
+          route: "AdminUsersInbox",
+        },
+      ]
+    : [];
 
   return (
     <Container>
@@ -17,12 +40,9 @@ export default function Home({ navigation }) {
       <HomeRequestsList
         items={items}
         onPressItem={(item) => {
-          // ✅ backend ready: item vem do array (depois vem do backend)
           if (item.route) navigation.navigate(item.route);
         }}
-        onMenuPressItem={(item) => {
-          // menu por item (depois você define)
-        }}
+        onMenuPressItem={() => {}}
       />
     </Container>
   );
