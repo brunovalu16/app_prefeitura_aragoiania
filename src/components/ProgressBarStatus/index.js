@@ -39,9 +39,8 @@ export default function ProgressBarStatus({
   onChangeStatus, // opcional: para salvar no backend futuramente
 }) {
   const [localStatus, setLocalStatus] = useState(status);
-  
 
-  // se você quiser sempre controlar de fora, pode remover localStatus
+  // se quiser sempre controlar de fora, pode remover localStatus
   const current = localStatus;
 
   const progress = useMemo(() => STATUS[current] ?? 0, [current]);
@@ -64,9 +63,8 @@ export default function ProgressBarStatus({
 
   //faz parte da verificação do usuario logado
   useEffect(() => {
-  setLocalStatus(status);
-}, [status]);
-
+    setLocalStatus(status);
+  }, [status]);
 
   return (
     <View>

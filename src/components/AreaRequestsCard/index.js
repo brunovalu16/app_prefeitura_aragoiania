@@ -21,23 +21,21 @@ export default function AreaRequestsCard({
   onPressRequest,
   onDeleteRequest,
   defaultOpen = false,
-  visibleCards = 3, // ✅ quantos cards completos
-  peekRatio = 0.25, // ✅ quanto do próximo card aparece (0.2~0.35 fica bom)
-  minListHeight = 180, // ✅ fallback mínimo
-  maxListHeight = 380, // ✅ trava pra não ficar gigante
+  visibleCards = 3,
+  peekRatio = 0.25,
+  minListHeight = 180,
+  maxListHeight = 380,
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(defaultOpen);
 
   const countText = useMemo(
     () => `${requests.length} solicitação(ões)`,
-    [requests]
+    [requests],
   );
 
-  // ✅ mede 1 card (altura real)
   const [cardH, setCardH] = useState(0);
 
-  // ✅ altura alvo: 3 cards + “um pouco” do próximo
   const targetHeight = useMemo(() => {
     if (!cardH) return minListHeight;
     const h = cardH * (visibleCards + peekRatio);
@@ -46,9 +44,11 @@ export default function AreaRequestsCard({
 
   return (
     <>
-      {/* ✅ CARD MESTRE (BRANCO) */}
       <CardMaster>
-        <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen((v) => !v)}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setOpen((v) => !v)}
+        >
           <HeaderRow>
             <HeaderLeft>
               <Ionicons
@@ -71,7 +71,6 @@ export default function AreaRequestsCard({
         </TouchableOpacity>
       </CardMaster>
 
-      {/* ✅ LISTA INTERNA (SEM FUNDO) + SCROLL + ALTURA LIMITADA */}
       {open && (
         <RequestsBody>
           <Divider />
@@ -82,26 +81,31 @@ export default function AreaRequestsCard({
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled
           >
-            {requests.map((r, idx) => (
-              <View
-                key={r.id}
-                onLayout={(e) => {
-                  // ✅ mede somente o 1º card (evita recalcular toda hora)
-                  if (idx === 0 && !cardH) {
-                    setCardH(e.nativeEvent.layout.height);
-                  }
-                }}
-              >
-                <HomeLastRequestCard
-                  title="MINHAS SOLICITAÇÕES"
-                  subtitle={r.requestTitle}
-                  status={r.status || "execucao"} // ✅ status individual
-                  onPress={() => onPressRequest?.(r)}
-                  onMenuPress={() => {}}
-                  onDeletePress={() => onDeleteRequest?.(r)} // ✅ sempre chama
-                />
-              </View>
-            ))}
+            {requests.map((r, idx) => {
+              const statusLower = (r?.status || "").toLowerCase();
+              const canDelete = statusLower === "analise";
+
+              return (
+                <View
+                  key={r.id}
+                  onLayout={(e) => {
+                    if (idx === 0 && !cardH) {
+                      setCardH(e.nativeEvent.layout.height);
+                    }
+                  }}
+                >
+                  <HomeLastRequestCard
+                    title="MINHAS SOLICITAÇÕES"
+                    subtitle={r.requestTitle}
+                    status={r.status || "execucao"}
+                    onPress={() => onPressRequest?.(r)}
+                    onMenuPress={() => {}}
+                    canDelete={canDelete} // ✅ habilita só em analise
+                    onDeletePress={() => onDeleteRequest?.(r)} // ✅ sempre passa (UI controla)
+                  />
+                </View>
+              );
+            })}
           </ScrollView>
         </RequestsBody>
       )}

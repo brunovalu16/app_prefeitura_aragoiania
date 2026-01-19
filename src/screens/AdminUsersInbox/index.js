@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-    ActivityIndicator,
-    ScrollView,
-    Text,
-    View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../../services/firebase";
@@ -61,7 +56,12 @@ export default function AdminUsersInbox({ navigation }) {
   const groupedByUser = useMemo(() => {
     const map = {};
 
-    (requests || []).forEach((r) => {
+    // ✅ ADMIN só vê solicitações ainda abertas (não concluídas)
+    const pending = (requests || []).filter(
+      (r) => (r?.status || "").toLowerCase() !== "concluida",
+    );
+
+    pending.forEach((r) => {
       const email = (r?.userEmail || "").toLowerCase() || "sem-email";
 
       if (!map[email]) {
@@ -74,10 +74,10 @@ export default function AdminUsersInbox({ navigation }) {
       map[email].requests.push(r);
     });
 
-    // ordena por email (ou por quantidade)
-    return Object.values(map).sort((a, b) =>
-      (a.userEmail || "").localeCompare(b.userEmail || "")
-    );
+    // ✅ remove usuários sem solicitações (por segurança)
+    return Object.values(map)
+      .filter((u) => (u.requests?.length || 0) > 0)
+      .sort((a, b) => (a.userEmail || "").localeCompare(b.userEmail || ""));
   }, [requests]);
 
   const showLoading = authLoading || (isAdmin && dataLoading);

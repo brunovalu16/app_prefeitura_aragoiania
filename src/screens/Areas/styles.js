@@ -5,11 +5,6 @@ export const Container = styled.View`
   background: ${({ theme }) => theme.colors.background};
 `;
 
-export const Top = styled.View`
-  padding: 34px 18px 10px 18px;
-`;
-
-/* ✅ Caixa do dropdown (substitui Banner) */
 export const SelectBox = styled.TouchableOpacity`
   margin: 18px 18px 0 18px;
   height: 36px;
@@ -32,12 +27,14 @@ export const SelectIconArea = styled.View`
   margin-left: 10px;
 `;
 
-/* ✅ Lista que abre embaixo */
+/* ✅ Dropdown com altura fixa (≈ 8 opções visíveis) */
 export const Dropdown = styled.View`
   margin: 6px 18px 0 18px;
   border-radius: 12px;
   background: ${({ theme }) => theme.colors.white ?? "#fff"};
   padding: 8px 12px;
+
+  max-height: 320px;
 `;
 
 export const Option = styled.TouchableOpacity`
@@ -51,4 +48,5 @@ export const OptionText = styled.Text`
   font-size: 12px;
   font-weight: 800;
   color: ${({ theme }) => theme.colors.textMuted};
+  flex: 1;
 `;

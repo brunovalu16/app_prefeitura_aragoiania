@@ -6,6 +6,19 @@ import { subscribeRequests } from "../../services/requests";
 
 import { Container } from "./styles";
 
+// ✅ mapa de rotas por área (igual você fez no Recebeiluminacao)
+const AREA_REPLY_ROUTE = {
+  iluminacao: "Replyiluminacao",
+  saude: "ReplySaude",
+  defesa: "ReplyDefesa",
+};
+
+// ✅ helper de navegação por areaId
+function navigateToReply(navigation, request) {
+  const route = AREA_REPLY_ROUTE[request?.areaId] || "Replyiluminacao";
+  navigation.navigate(route, { requestId: request?.id });
+}
+
 export default function AdminUserAreas({ navigation, route }) {
   const { userEmail = "" } = route?.params || {};
   const [requests, setRequests] = useState([]);
@@ -24,9 +37,11 @@ export default function AdminUserAreas({ navigation, route }) {
     const map = {};
     const emailLower = (userEmail || "").toLowerCase();
 
-    const mine = (requests || []).filter(
-      (r) => (r?.userEmail || "").toLowerCase() === emailLower
-    );
+    const mine = (requests || []).filter((r) => {
+      const emailOk = (r?.userEmail || "").toLowerCase() === emailLower;
+      const notDone = (r?.status || "").toLowerCase() !== "concluida";
+      return emailOk && notDone;
+    });
 
     mine.forEach((r) => {
       const areaId = r?.areaId || "sem_area";
@@ -42,7 +57,10 @@ export default function AdminUserAreas({ navigation, route }) {
       map[areaId].requests.push(r);
     });
 
-    return Object.values(map);
+    // ✅ opcional: ordena por label da área
+    return Object.values(map).sort((a, b) =>
+      (a.areaLabel || "").localeCompare(b.areaLabel || ""),
+    );
   }, [requests, userEmail]);
 
   return (
@@ -57,9 +75,7 @@ export default function AdminUserAreas({ navigation, route }) {
             key={group.areaId}
             areaLabel={group.areaLabel}
             requests={group.requests}
-            onPressRequest={(r) =>
-              navigation.navigate("Replyiluminacao", { requestId: r?.id })
-            }
+            onPressRequest={(r) => navigateToReply(navigation, r)} // ✅ dinâmica por área
           />
         ))}
       </Container>

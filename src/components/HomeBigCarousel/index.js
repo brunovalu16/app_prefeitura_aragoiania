@@ -24,7 +24,7 @@ export default function HomeBigCarousel({ navigation }) {
         id: "serv_area_2",
         title: "ÁREA DA\nSAÚDE",
         image: Images.saude,
-        onPress: () => {},
+        onPress: () => navigation.navigate("SolicitarSaude"), // ✅
       },
       {
         id: "serv_area_3",
@@ -33,7 +33,7 @@ export default function HomeBigCarousel({ navigation }) {
         onPress: () => {},
       },
     ],
-    [navigation]
+    [navigation],
   );
 
   return (
@@ -47,9 +47,7 @@ export default function HomeBigCarousel({ navigation }) {
         decelerationRate="fast"
         contentContainerStyle={{ paddingLeft: 18, paddingRight: 18 }}
         onMomentumScrollEnd={(event) => {
-          const index = Math.round(
-            event.nativeEvent.contentOffset.x / SNAP
-          );
+          const index = Math.round(event.nativeEvent.contentOffset.x / SNAP);
           setActiveIndex(index);
         }}
         renderItem={({ item, index }) => (
@@ -58,7 +56,9 @@ export default function HomeBigCarousel({ navigation }) {
             image={item.image}
             onPress={item.onPress}
             width={CARD_WIDTH}
-            style={{ marginRight: index === bigCards.length - 1 ? 0 : CARD_GAP }}
+            style={{
+              marginRight: index === bigCards.length - 1 ? 0 : CARD_GAP,
+            }}
           />
         )}
       />

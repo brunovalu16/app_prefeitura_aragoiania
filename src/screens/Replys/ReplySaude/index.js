@@ -2,16 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    Modal,
+    Pressable,
+    ScrollView,
+    TextInput,
+    View,
 } from "react-native";
 import { useTheme } from "styled-components/native";
 
@@ -19,35 +19,35 @@ import { getAuth } from "firebase/auth";
 
 import ProgressBarStatus from "../../../components/ProgressBarStatus";
 import {
-  addProcessImage,
-  deleteProcessImage,
-  deleteRequestImage,
-  subscribeRequestById,
-  updateRequestStatus,
+    addProcessImage,
+    deleteProcessImage,
+    deleteRequestImage,
+    subscribeRequestById,
+    updateRequestStatus,
 } from "../../../services/requests";
 
 import { getAuthUserId } from "../../../services/userId";
 
 import {
-  ActionRow,
-  AreaTitle,
-  Card,
-  Container,
-  Divider,
-  FooterHint,
-  PreviewGrid,
-  PreviewImage,
-  PreviewItem,
-  Row,
-  SaveStatusButton, // ✅ ADD
-  SaveStatusText,
-  SectionTitle,
-  SmallAction,
-  SmallActionText,
-  ValueText,
+    ActionRow,
+    AreaTitle,
+    Card,
+    Container,
+    Divider,
+    FooterHint,
+    PreviewGrid,
+    PreviewImage,
+    PreviewItem,
+    Row,
+    SaveStatusButton, // ✅ ADD
+    SaveStatusText,
+    SectionTitle,
+    SmallAction,
+    SmallActionText,
+    ValueText,
 } from "./styles";
 
-export default function Replyiluminacao({ navigation, route }) {
+export default function ReplySaude({ navigation, route }) {
   const theme = useTheme();
   const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
   const listRef = useRef(null);

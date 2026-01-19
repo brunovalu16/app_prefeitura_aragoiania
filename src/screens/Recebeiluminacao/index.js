@@ -16,8 +16,6 @@ import AreaRequestsCard from "../../components/AreaRequestsCard";
 import { auth } from "../../services/firebase";
 import { deleteRequest, subscribeRequests } from "../../services/requests";
 
-
-
 import { Container } from "./styles";
 
 // ✅ mapa limpo de rotas por área
@@ -27,8 +25,6 @@ const AREA_REPLY_ROUTE = {
   defesa: "ReplyDefesa",
 };
 
-
-
 //função deletar
 async function handleDeleteRequest(request) {
   try {
@@ -37,7 +33,7 @@ async function handleDeleteRequest(request) {
     if (status !== "analise") {
       return Alert.alert(
         "Não é possível excluir",
-        "Essa solicitação não pode ser deletada pois está em andamento."
+        "Essa solicitação não pode ser deletada pois está em andamento.",
       );
     }
 
@@ -53,7 +49,7 @@ async function handleDeleteRequest(request) {
             await deleteRequest({ requestId: request.id });
           },
         },
-      ]
+      ],
     );
   } catch (e) {
     console.log("❌ deleteRequest:", e?.code, e?.message);
@@ -61,13 +57,13 @@ async function handleDeleteRequest(request) {
   }
 }
 
-
-
 // ✅ helper de navegação
 function navigateToReply(navigation, request) {
   const route = AREA_REPLY_ROUTE[request?.areaId] || "Replyiluminacao";
   navigation.navigate(route, { requestId: request?.id });
 }
+
+//Pagina Recebeiluminacao
 
 export default function Recebeiluminacao({ navigation }) {
   const [requests, setRequests] = useState([]);
@@ -79,7 +75,7 @@ export default function Recebeiluminacao({ navigation }) {
   const [dataLoading, setDataLoading] = useState(false);
 
   // ✅ 1) escuta o Auth
-useEffect(() => {
+  useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       const nextUid = user?.uid || null;
       const email = (user?.email || "").toLowerCase();
@@ -98,7 +94,7 @@ useEffect(() => {
   }, [navigation]);
 
   // ✅ 2) quando tiver UID, assina o Firestore
-   useEffect(() => {
+  useEffect(() => {
     if (!uid) return;
 
     setDataLoading(true);
@@ -115,45 +111,43 @@ useEffect(() => {
     return () => unsub?.();
   }, [uid, isAdmin]); // ✅ ADD isAdmin
 
-
   // ✅ agrupa solicitações por área
   const groupedByArea = useMemo(() => {
-  const map = {};
+    const map = {};
 
-  // ✅ usuário não vê concluída
-  const visibleRequests = (requests || []).filter(
-    (r) => (r?.status || "").toLowerCase() !== "concluida"
-  );
+    // ✅ usuário não vê concluída
+    const visibleRequests = (requests || []).filter(
+      (r) => (r?.status || "").toLowerCase() !== "concluida",
+    );
 
-  visibleRequests.forEach((r) => {
-    const areaId = r?.areaId || "sem_area";
+    visibleRequests.forEach((r) => {
+      const areaId = r?.areaId || "sem_area";
 
-    if (!map[areaId]) {
-      map[areaId] = {
-        areaId,
-        areaLabel: r?.areaLabel || String(areaId).toUpperCase(),
-        requests: [],
-      };
-    }
+      if (!map[areaId]) {
+        map[areaId] = {
+          areaId,
+          areaLabel: r?.areaLabel || String(areaId).toUpperCase(),
+          requests: [],
+        };
+      }
 
-    map[areaId].requests.push(r);
-  });
-
-  const arr = Object.values(map).sort((a, b) =>
-    (a.areaLabel || "").localeCompare(b.areaLabel || "")
-  );
-
-  arr.forEach((g) => {
-    g.requests.sort((a, b) => {
-      const ta = a?.createdAt?.toMillis?.() ?? 0;
-      const tb = b?.createdAt?.toMillis?.() ?? 0;
-      return tb - ta;
+      map[areaId].requests.push(r);
     });
-  });
 
-  return arr;
-}, [requests]);
+    const arr = Object.values(map).sort((a, b) =>
+      (a.areaLabel || "").localeCompare(b.areaLabel || ""),
+    );
 
+    arr.forEach((g) => {
+      g.requests.sort((a, b) => {
+        const ta = a?.createdAt?.toMillis?.() ?? 0;
+        const tb = b?.createdAt?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
+    });
+
+    return arr;
+  }, [requests]);
 
   const showLoading = authLoading || (!!uid && dataLoading);
 
@@ -165,7 +159,11 @@ useEffect(() => {
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 12, paddingBottom: 24, flexGrow: 1 }}
+          contentContainerStyle={{
+            padding: 12,
+            paddingBottom: 24,
+            flexGrow: 1,
+          }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

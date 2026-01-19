@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { View } from "react-native";
+import { Alert } from "react-native";
 import { useTheme } from "styled-components/native";
-
 import {
   CardRow,
   SmallCard,
@@ -14,12 +13,33 @@ import {
 export default function HomeLastRequestCard({
   title = "MINHAS SOLICITAÇÕES",
   subtitle = "ILUMINAÇÃO PÚBLICA",
-  status = "execucao",
+  status = "",
   onPress,
   onMenuPress,
-  onDeletePress, // ✅ novo
+
+  // ✅ DELETE (opcional)
+  canDelete,
+  onDeletePress,
 }) {
   const theme = useTheme();
+
+  // ✅ só mostra o ícone se existir handler de delete OU canDelete foi definido
+  const showDelete =
+    typeof onDeletePress === "function" || typeof canDelete === "boolean";
+
+  function handlePressDelete() {
+    // ✅ se não pode deletar, mostra alerta e não deleta
+    if (canDelete === false) {
+      Alert.alert(
+        "Não permitido",
+        "Essa solicitação não pode ser deletada pois está em andamento.",
+      );
+      return;
+    }
+
+    // ✅ se pode deletar, chama o handler real
+    onDeletePress?.();
+  }
 
   return (
     <CardRow>
@@ -34,20 +54,23 @@ export default function HomeLastRequestCard({
           <SmallInfo>
             <SmallTitle>{title}</SmallTitle>
             <SmallSub>{subtitle}</SmallSub>
-            <SmallSub style={{ marginTop: 4, opacity: 0.85 }}>
-              Status: {(status || "execucao").toLowerCase()}
-            </SmallSub>
+
+            {!!status && (
+              <SmallSub style={{ marginTop: 2 }}>Status: {status}</SmallSub>
+            )}
           </SmallInfo>
         </SmallIconLeft>
 
-        {/* ✅ AÇÕES DIREITA (LIXEIRA + MENU) */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <Ionicons
-            name="trash-outline"
-            size={18}
-            color="#B91C1C"
-            onPress={onDeletePress}
-          />
+        {/* ✅ AÇÕES DIREITA */}
+        <SmallIconLeft style={{ gap: 10 }}>
+          {showDelete && (
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color="#E11D48"
+              onPress={handlePressDelete}
+            />
+          )}
 
           <Ionicons
             name="ellipsis-vertical"
@@ -55,7 +78,7 @@ export default function HomeLastRequestCard({
             color={theme.colors.purple}
             onPress={onMenuPress}
           />
-        </View>
+        </SmallIconLeft>
       </SmallCard>
     </CardRow>
   );

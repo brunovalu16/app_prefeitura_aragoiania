@@ -42,9 +42,14 @@ export default function AdminAreas({ navigation }) {
             title="PAINEL ADMIN"
             subtitle={a.label}
             status="" // pode deixar vazio
-            onPress={() => navigation.navigate("AdminInboxArea", { areaId: a.id, areaLabel: a.label })}
+            onPress={() =>
+              navigation.navigate("AdminInboxArea", {
+                areaId: a.id,
+                areaLabel: a.label,
+              })
+            }
             onMenuPress={() => {}}
-            onDeletePress={null} // não precisa delete aqui
+            // ✅ NÃO PASSA onDeletePress / canDelete
           />
         </View>
       ))}

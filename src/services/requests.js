@@ -16,7 +16,12 @@ import {
   where,
 } from "firebase/firestore";
 
-import { deleteObject, getStorage, ref, ref as storageRef } from "firebase/storage";
+import {
+  deleteObject,
+  getStorage,
+  ref,
+  ref as storageRef,
+} from "firebase/storage";
 import { db, storage } from "./firebase";
 import { uploadImageAsync } from "./uploadImage";
 
@@ -50,7 +55,9 @@ export async function deleteRequestImage({ requestId, imgObj }) {
   const uri = getImgUri(imgObj);
   if (uri && uri.includes("firebasestorage.googleapis.com")) {
     try {
-      const decodedPath = decodeURIComponent(uri.split("/o/")[1]?.split("?")[0] || "");
+      const decodedPath = decodeURIComponent(
+        uri.split("/o/")[1]?.split("?")[0] || "",
+      );
       if (decodedPath) {
         await deleteObject(ref(storage, decodedPath));
       }
@@ -60,18 +67,35 @@ export async function deleteRequestImage({ requestId, imgObj }) {
   }
 }
 
-export async function updateRequestStatus({ requestId, status, userId }) {
+export async function updateRequestStatus({
+  requestId,
+  status,
+  userId,
+  notes,
+}) {
   if (!requestId) throw new Error("requestId obrigatório");
   if (!status) throw new Error("status obrigatório");
 
   const db = getFirestore();
-  const refDoc = doc(db, "requests", requestId);
+  const ref = doc(db, "requests", requestId);
 
-  await updateDoc(refDoc, {
+  const payload = {
     status,
     statusUpdatedAt: serverTimestamp(),
     statusUpdatedBy: userId || null,
-  });
+  };
+
+  // ✅ se vier notas, salva também
+  if (notes && typeof notes === "object") {
+    if (typeof notes.noteAnalise === "string")
+      payload.noteAnalise = notes.noteAnalise;
+    if (typeof notes.notePendente === "string")
+      payload.notePendente = notes.notePendente;
+    if (typeof notes.noteExecucao === "string")
+      payload.noteExecucao = notes.noteExecucao;
+  }
+
+  await updateDoc(ref, payload);
 }
 
 // ✅ apaga arquivo do Storage por URL (se der erro, não quebra)
@@ -115,9 +139,7 @@ export async function createRequest({
 
   // ✅ garante email (se não veio, pega do auth)
   const auth = getAuth();
-  const safeUserEmail = String(
-    userEmail || auth.currentUser?.email || ""
-  )
+  const safeUserEmail = String(userEmail || auth.currentUser?.email || "")
     .trim()
     .toLowerCase();
 
@@ -148,31 +170,33 @@ export async function createRequest({
 
     tx.set(counterRef, { lastNumber: nextNumber }, { merge: true });
 
-   tx.set(newReqRef, {
-  userId,
-  userEmail: safeUserEmail, // ✅ correto
-  areaId,
-  areaLabel,
+    tx.set(newReqRef, {
+      userId,
+      userEmail: safeUserEmail, // ✅ correto
+      areaId,
+      areaLabel,
+      noteAnalise: "",
+      notePendente: "",
+      noteExecucao: "",
 
-  // ✅ caminho lógico (não cria coleção, só salva string)
-  path: safeUserEmail
-    ? `solicitacoes/${safeUserEmail}/area/${areaId}`
-    : `solicitacoes/sem-email/area/${areaId}`,
+      // ✅ caminho lógico (não cria coleção, só salva string)
+      path: safeUserEmail
+        ? `solicitacoes/${safeUserEmail}/area/${areaId}`
+        : `solicitacoes/sem-email/area/${areaId}`,
 
-  requestNumber: nextNumber,
-  requestTitle,
-  descricao: (descricao || "").trim(),
-  enderecoPoste: (enderecoPoste || "").trim(),
-  numeroPoste: (numeroPoste || "").trim(),
+      requestNumber: nextNumber,
+      requestTitle,
+      descricao: (descricao || "").trim(),
+      enderecoPoste: (enderecoPoste || "").trim(),
+      numeroPoste: (numeroPoste || "").trim(),
 
-  images: [],
-  processImages: [],
+      images: [],
+      processImages: [],
 
-  location: location || null,
-  status: "execucao",
-  createdAt: serverTimestamp(),
-});
-
+      location: location || null,
+      status: "analise",
+      createdAt: serverTimestamp(),
+    });
 
     return { requestId: newReqRef.id, requestTitle, requestNumber: nextNumber };
   });
@@ -218,7 +242,7 @@ export function subscribeRequests({ userId, max = 200, onChange }) {
       qBase,
       where("userId", "==", userId),
       orderBy("createdAt", "desc"),
-      limit(max)
+      limit(max),
     );
   }
 
@@ -247,9 +271,13 @@ export function subscribeRequestById({ requestId, onChange }) {
       onChange?.({ id: snap.id, ...snap.data() });
     },
     (err) => {
-      console.log("❌ subscribeRequestById onSnapshot:", err?.code, err?.message);
+      console.log(
+        "❌ subscribeRequestById onSnapshot:",
+        err?.code,
+        err?.message,
+      );
       onChange?.(null);
-    }
+    },
   );
 }
 
@@ -309,9 +337,14 @@ export async function deleteRequest({ requestId }) {
     const data = snap.data() || {};
 
     const images = Array.isArray(data.images) ? data.images : [];
-    const processImages = Array.isArray(data.processImages) ? data.processImages : [];
+    const processImages = Array.isArray(data.processImages)
+      ? data.processImages
+      : [];
 
-    const urls = [...images.map(getImgUri), ...processImages.map(getImgUri)].filter(Boolean);
+    const urls = [
+      ...images.map(getImgUri),
+      ...processImages.map(getImgUri),
+    ].filter(Boolean);
 
     await Promise.all(urls.map(tryDeleteByUrl));
   }
@@ -332,7 +365,7 @@ export function subscribeRequestsByArea({ areaId, onChange }) {
   const q = query(
     collection(db, "requests"),
     where("areaId", "==", areaId),
-    orderBy("createdAt", "desc")
+    orderBy("createdAt", "desc"),
   );
 
   return onSnapshot(
@@ -344,6 +377,6 @@ export function subscribeRequestsByArea({ areaId, onChange }) {
     (err) => {
       console.log("❌ subscribeRequestsByArea:", err?.code, err?.message);
       onChange?.([]);
-    }
+    },
   );
 }

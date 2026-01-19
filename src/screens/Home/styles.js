@@ -15,7 +15,6 @@ export const ListArea = styled.View`
   margin-top: -5px;
 `;
 
-
 /* ✅ Scroll só da lista */
 export const ListScroll = styled.ScrollView.attrs({
   contentContainerStyle: { paddingBottom: 15 },
