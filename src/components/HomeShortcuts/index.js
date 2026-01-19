@@ -21,7 +21,7 @@ export default function HomeShortcuts({
       { id: "saude", label: "NOTÍCIAS SAÚDE" },
       { id: "eventos", label: "EVENTOS" },
     ],
-    []
+    [],
   );
 
   const shortcuts = shortcutsProp?.length ? shortcutsProp : defaultShortcuts;
@@ -38,7 +38,7 @@ export default function HomeShortcuts({
 
     // ✅ Navegação interna (fixa) para o Recebeiluminacao
     if (item.id === "solicitacoes" || item.label === "SOLICITAÇÕES") {
-      navigation.navigate("Recebeiluminacao");
+      navigation.navigate("Recebesolicitacoes");
     }
 
     // ✅ continua disparando callback pra Home se você quiser usar depois

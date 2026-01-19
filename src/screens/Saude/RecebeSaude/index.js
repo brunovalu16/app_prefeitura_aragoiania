@@ -12,16 +12,16 @@ import {
 } from "react-native";
 
 import { onAuthStateChanged } from "firebase/auth";
-import AreaRequestsCard from "../../components/AreaRequestsCard";
-import { auth } from "../../services/firebase";
-import { deleteRequest, subscribeRequests } from "../../services/requests";
+import AreaRequestsCard from "../../../components/AreaRequestsCard";
+import { auth } from "../../../services/firebase";
+import { deleteRequest, subscribeRequests } from "../../../services/requests";
 
 import { Container } from "./styles";
 
 // ✅ mapa limpo de rotas por área
 const AREA_REPLY_ROUTE = {
   iluminacao: "Replyiluminacao",
-  saude: "ReplySaude",
+  saude: "ReplyExameseconsultas",
   defesa: "ReplyDefesa",
 };
 
@@ -65,7 +65,7 @@ function navigateToReply(navigation, request) {
 
 //Pagina Recebeiluminacao
 
-export default function Recebeiluminacao({ navigation }) {
+export default function RecebeSaude({ navigation }) {
   const [requests, setRequests] = useState([]);
   const [uid, setUid] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // ✅ ADD

@@ -4,11 +4,13 @@ import Cadastro from "../screens/Cadastro";
 import Login from "../screens/Login";
 import AppTabs from "./AppTabs";
 
-// telas que podem ser acessadas fora do fluxo principal
-import Exameseconsultas from "../screens/Exameseconsultas";
-import Recebeiluminacao from "../screens/Recebeiluminacao";
+/* FALLBACKS / ACESSO DIRETO */
+import Recebesolicitacoes from "../screens/Recebesolicitacoes";
 import Replyiluminacao from "../screens/Replys/Replyiluminacao";
-import ReplySaude from "../screens/Replys/ReplySaude";
+import Exameseconsultas from "../screens/Saude/Exameseconsultas";
+import RecebeSaude from "../screens/Saude/RecebeSaude";
+import ReplyExameseconsultas from "../screens/Saude/ReplyExameseconsultas";
+import SolicitarSaude from "../screens/Saude/SolicitarSaude";
 import User from "../screens/User";
 
 const Stack = createNativeStackNavigator();
@@ -18,19 +20,25 @@ export default function RootNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {/* AUTH */}
+      {/* ================= AUTH ================= */}
       <Stack.Screen name="Login" component={Login} />
       <Stack.Screen name="Cadastro" component={Cadastro} />
 
-      {/* APP LOGADO */}
+      {/* ================= APP LOGADO ================= */}
       <Stack.Screen name="AppTabs" component={AppTabs} />
 
-      {/* FALLBACKS / ACESSO DIRETO */}
+      {/* ================= FALLBACKS ================= */}
+      {/* ⚠️ usadas apenas quando navegar fora do fluxo */}
       <Stack.Screen name="Replyiluminacao" component={Replyiluminacao} />
-      <Stack.Screen name="ReplySaude" component={ReplySaude} />
-      <Stack.Screen name="Recebeiluminacao" component={Recebeiluminacao} />
-      <Stack.Screen name="User" component={User} />
+      <Stack.Screen
+        name="ReplyExameseconsultas"
+        component={ReplyExameseconsultas}
+      />
+      <Stack.Screen name="Recebesolicitacoes" component={Recebesolicitacoes} />
+      <Stack.Screen name="RecebeSaude" component={RecebeSaude} />
       <Stack.Screen name="Exameseconsultas" component={Exameseconsultas} />
+      <Stack.Screen name="SolicitarSaude" component={SolicitarSaude} />
+      <Stack.Screen name="User" component={User} />
     </Stack.Navigator>
   );
 }

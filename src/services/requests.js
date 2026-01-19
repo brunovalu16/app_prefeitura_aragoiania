@@ -122,16 +122,22 @@ async function tryDeleteByUrl(url) {
  * ✅ Cria solicitação com numeração sequencial por userId+areaId
  * ✅ Upload das imagens para Storage e salva URLs no Firestore
  */
+// services/requests.js (ou requests.ts)
+// ✅ versão FLEXÍVEL: salva qualquer campo extra (ex: saudeData, medicoAgendado, dataAgendada, horaAgendada, transporte, etc.)
+
 export async function createRequest({
   userId,
-  userEmail, // opcional (vamos garantir abaixo)
+  userEmail, // opcional (garantimos abaixo)
   areaId,
   areaLabel,
   descricao,
-  enderecoPoste,
-  numeroPoste,
+  enderecoPoste = "",
+  numeroPoste = "",
   images = [],
   location = null,
+
+  // ✅ NOVO: dados estruturados do formulário (saúde, etc.)
+  data = {}, // exemplo: { medicoAgendado, dataAgendada, horaAgendada, clinica, exames... }
 }) {
   if (!userId) throw new Error("createRequest: userId obrigatório");
   if (!areaId) throw new Error("createRequest: areaId obrigatório");
@@ -145,8 +151,9 @@ export async function createRequest({
 
   const counterId = `${userId}_${areaId}`;
   const counterRef = doc(db, "counters", counterId);
+
   const reqCol = collection(db, "requests");
-  const newReqRef = doc(reqCol);
+  const newReqRef = doc(reqCol); // ✅ gera id antes (sem addDoc)
 
   // ✅ normaliza imagens: [{uri}] | [{url}] | ["..."]
   const safeImages = Array.isArray(images) ? images : [];
@@ -161,8 +168,9 @@ export async function createRequest({
   // ✅ 1) cria doc dentro da transaction (sem images ainda)
   const result = await runTransaction(db, async (tx) => {
     const counterSnap = await tx.get(counterRef);
+
     const lastNumber = counterSnap.exists()
-      ? counterSnap.data().lastNumber || 0
+      ? Number(counterSnap.data().lastNumber || 0)
       : 0;
 
     const nextNumber = lastNumber + 1;
@@ -172,33 +180,52 @@ export async function createRequest({
 
     tx.set(newReqRef, {
       userId,
-      userEmail: safeUserEmail, // ✅ correto
+      userEmail: safeUserEmail,
       areaId,
       areaLabel,
+
+      // ✅ notas do admin
       noteAnalise: "",
       notePendente: "",
       noteExecucao: "",
 
-      // ✅ caminho lógico (não cria coleção, só salva string)
+      // ✅ caminho lógico (apenas string)
       path: safeUserEmail
         ? `solicitacoes/${safeUserEmail}/area/${areaId}`
         : `solicitacoes/sem-email/area/${areaId}`,
 
       requestNumber: nextNumber,
       requestTitle,
-      descricao: (descricao || "").trim(),
-      enderecoPoste: (enderecoPoste || "").trim(),
-      numeroPoste: (numeroPoste || "").trim(),
 
+      // ✅ texto “resumo” (mantém compatibilidade com suas telas)
+      descricao: String(descricao || "").trim(),
+
+      // ✅ campos antigos (iluminação) — mantém
+      enderecoPoste: String(enderecoPoste || "").trim(),
+      numeroPoste: String(numeroPoste || "").trim(),
+
+      // ✅ imagens
       images: [],
       processImages: [],
 
+      // ✅ localização
       location: location || null,
+
+      // ✅ status
       status: "analise",
       createdAt: serverTimestamp(),
+
+      // ✅ NOVO: salva TUDO que o usuário escolheu/inputou (saúde etc.)
+      data: {
+        ...(data && typeof data === "object" ? data : {}),
+      },
     });
 
-    return { requestId: newReqRef.id, requestTitle, requestNumber: nextNumber };
+    return {
+      requestId: newReqRef.id,
+      requestTitle,
+      requestNumber: nextNumber,
+    };
   });
 
   // ✅ 2) se não tiver imagens, já retorna

@@ -14,11 +14,11 @@ import {
 import { useTheme } from "styled-components/native";
 
 import { getAuth } from "firebase/auth";
-import AppAlert from "../../components/AppAlert";
-import { createRequest } from "../../services/requests";
-import { getAuthUserId } from "../../services/userId";
+import AppAlert from "../../../components/AppAlert";
+import { createRequest } from "../../../services/requests";
+import { getAuthUserId } from "../../../services/userId";
 
-import PrimaryButtonenviarareas from "../../components/PrimaryButtonenviarareas";
+import PrimaryButtonenviarareas from "../../../components/PrimaryButtonenviarareas";
 
 import {
   AccordionItem,
@@ -484,6 +484,38 @@ export default function Exameseconsultas({ navigation }) {
     };
   }, []);
 
+  //mockup clinicas
+
+  const clinicsByDoctorSlot = useMemo(() => {
+    // chave: `${doctor}|${date}|${hour}`
+    return {
+      "Dra. Ana Souza (Clínico Geral)|2026-01-20|08:00": [
+        "Clínica Vida Mais",
+        "Policlínica Municipal",
+      ],
+      "Dra. Ana Souza (Clínico Geral)|2026-01-20|09:30": [
+        "Centro Médico Araguaia",
+      ],
+      "Dra. Ana Souza (Clínico Geral)|2026-01-22|10:00": [
+        "Clínica Santa Luzia",
+        "Clínica Saúde Total",
+      ],
+
+      "Dr. Paulo Lima (Cardiologista)|2026-01-21|07:30": [
+        "Centro Médico Primavera",
+        "Centro Médico Araguaia",
+      ],
+      "Dr. Paulo Lima (Cardiologista)|2026-01-23|14:30": ["Clínica Vida Mais"],
+    };
+  }, []);
+
+  const clinicasFiltradas = useMemo(() => {
+    if (!medicoAgendado || !dataAgendada || !horaAgendada) return [];
+
+    const key = `${medicoAgendado}|${dataAgendada}|${horaAgendada}`;
+    return clinicsByDoctorSlot[key] || [];
+  }, [medicoAgendado, dataAgendada, horaAgendada, clinicsByDoctorSlot]);
+
   function openDoctorSheet(doctorName) {
     setSelectedDate(null);
     setSelectedHour(null);
@@ -521,6 +553,37 @@ export default function Exameseconsultas({ navigation }) {
   const descricaoFinal = buildDescricao();
   const canSave = !!descricaoFinal.trim() && !loading;
 
+  // FUNÇÃO QUE CRIA O OBJETO COM OS DADOS
+
+  function buildSaudeData() {
+    return {
+      // seleção principal
+      medicoSelecionado: selectedMedico || null,
+      clinicaSelecionada: selectedClinica || null,
+      exameSelecionado: selectedExame || null,
+      procedimentoSelecionado: selectedProcedimento || null,
+
+      // agendamento confirmado (sheet)
+      medicoAgendado: medicoAgendado || null,
+      dataAgendada: dataAgendada || null,
+      horaAgendada: horaAgendada || null,
+
+      // input
+      transporte: (transporte || "").trim() || null,
+
+      // info útil p/ auditoria/debug
+      clinicasDisponiveisNoSlot: Array.isArray(clinicasFiltradas)
+        ? clinicasFiltradas
+        : [],
+
+      // para no futuro ligar com admin
+      slotKey:
+        medicoAgendado && dataAgendada && horaAgendada
+          ? `${medicoAgendado}|${dataAgendada}|${horaAgendada}`
+          : null,
+    };
+  }
+
   async function handleSave() {
     if (loading) return;
 
@@ -541,16 +604,23 @@ export default function Exameseconsultas({ navigation }) {
       const auth = getAuth();
       const userEmail = (auth.currentUser?.email || "").trim().toLowerCase();
 
+      const saudeData = buildSaudeData();
+
       const { requestId } = await createRequest({
         userId,
         userEmail,
         areaId: "saude",
         areaLabel: "SAÚDE",
+
+        // continua compatível com o seu Reply, etc
         descricao: descricaoFinal,
 
-        // ✅ mantendo compatibilidade com seu schema atual:
-        enderecoPoste: "", // não usa aqui
-        numeroPoste: "", // não usa aqui
+        // ✅ NOVO: salva estruturado
+        saudeData,
+
+        // mantendo compatibilidade com seu schema atual:
+        enderecoPoste: "",
+        numeroPoste: "",
         images: [],
         location: null,
       });
@@ -655,6 +725,7 @@ export default function Exameseconsultas({ navigation }) {
                       activeOpacity={0.9}
                       onPress={() => {
                         setSelectedMedico(name);
+                        setSelectedClinica(null); // ✅ limpa clínica antiga
                         openDoctorSheet(name); // ✅ abre o sheet com datas/horários
                       }}
                     >
@@ -694,6 +765,12 @@ export default function Exameseconsultas({ navigation }) {
                       {selectedClinica}
                     </SelectedPillText>
                   </SelectedPill>
+                ) : !medicoAgendado || !dataAgendada || !horaAgendada ? (
+                  <SelectedPill>
+                    <SelectedPillText numberOfLines={1}>
+                      Selecione médico/data/hora
+                    </SelectedPillText>
+                  </SelectedPill>
                 ) : null}
 
                 <Ionicons
@@ -713,27 +790,47 @@ export default function Exameseconsultas({ navigation }) {
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
               >
-                {clinicas.map((name) => {
-                  const active = selectedClinica === name;
-                  return (
-                    <AccordionItem
-                      key={name}
-                      activeOpacity={0.9}
-                      onPress={() => setSelectedClinica(name)}
-                    >
-                      <AccordionRow>
-                        <Ionicons
-                          name={active ? "checkmark-circle" : "ellipse-outline"}
-                          size={18}
-                          color={
-                            active ? theme.colors.purple : theme.colors.cinza
-                          }
-                        />
-                        <AccordionText numberOfLines={2}>{name}</AccordionText>
-                      </AccordionRow>
-                    </AccordionItem>
-                  );
-                })}
+                {!medicoAgendado || !dataAgendada || !horaAgendada ? (
+                  <View style={{ paddingVertical: 10 }}>
+                    <Text style={{ color: theme.colors.textSecondary }}>
+                      Para ver as clínicas disponíveis, primeiro escolha um
+                      médico e confirme data e hora.
+                    </Text>
+                  </View>
+                ) : clinicasFiltradas.length ? (
+                  clinicasFiltradas.map((name) => {
+                    const active = selectedClinica === name;
+                    return (
+                      <AccordionItem
+                        key={name}
+                        activeOpacity={0.9}
+                        onPress={() => setSelectedClinica(name)}
+                      >
+                        <AccordionRow>
+                          <Ionicons
+                            name={
+                              active ? "checkmark-circle" : "ellipse-outline"
+                            }
+                            size={18}
+                            color={
+                              active ? theme.colors.purple : theme.colors.cinza
+                            }
+                          />
+                          <AccordionText numberOfLines={2}>
+                            {name}
+                          </AccordionText>
+                        </AccordionRow>
+                      </AccordionItem>
+                    );
+                  })
+                ) : (
+                  <View style={{ paddingVertical: 10 }}>
+                    <Text style={{ color: theme.colors.textSecondary }}>
+                      Nenhuma clínica disponível para esse médico neste dia e
+                      horário.
+                    </Text>
+                  </View>
+                )}
               </AccordionList>
             )}
 
@@ -986,7 +1083,9 @@ export default function Exameseconsultas({ navigation }) {
         onClose={() => {
           setSuccessOpen(false);
           if (successRequestId) {
-            navigation.navigate("ReplySaude", { requestId: successRequestId });
+            navigation.navigate("ReplyExameseconsultas", {
+              requestId: successRequestId,
+            });
           }
         }}
       />

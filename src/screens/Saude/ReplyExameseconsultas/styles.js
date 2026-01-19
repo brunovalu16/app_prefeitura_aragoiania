@@ -6,13 +6,13 @@ export const Container = styled.View`
 `;
 
 export const Header = styled.View`
-  height: 140px;
+  height: 80px;
 `;
 
 export const HeaderContent = styled.View`
   flex: 1;
   padding: 18px 16px;
-  padding-top: 44px;
+  padding-top: 65px;
   flex-direction: row;
   align-items: center;
 `;
@@ -131,8 +131,9 @@ export const MiniText = styled.Text`
 // accordion
 
 export const SelectedPill = styled.View`
-  max-width: 120px;
-  padding: 3px 8px;
+  flex-shrink: 1;
+  max-width: 85%; /* mais espaço horizontal */
+  padding: 6px 10px;
   border-radius: 999px;
   background-color: ${({ theme }) => theme.colors.cinzaclaro};
 `;
@@ -141,6 +142,8 @@ export const SelectedPillText = styled.Text`
   font-size: 11px;
   font-weight: 700;
   color: ${({ theme }) => theme.colors.cinza};
+
+  white-space: nowrap; /* força 1 linha */
 `;
 
 /**

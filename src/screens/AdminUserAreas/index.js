@@ -9,7 +9,7 @@ import { Container } from "./styles";
 // ✅ mapa de rotas por área (igual você fez no Recebeiluminacao)
 const AREA_REPLY_ROUTE = {
   iluminacao: "Replyiluminacao",
-  saude: "ReplySaude",
+  saude: "ReplyExameseconsultas",
   defesa: "ReplyDefesa",
 };
 
