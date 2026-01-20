@@ -39,8 +39,10 @@ export default function AdminUserAreas({ navigation, route }) {
 
     const mine = (requests || []).filter((r) => {
       const emailOk = (r?.userEmail || "").toLowerCase() === emailLower;
-      const notDone = (r?.status || "").toLowerCase() !== "concluida";
-      return emailOk && notDone;
+
+      const notHidden = !r?.isHidden; // ✅ ESSENCIAL
+
+      return emailOk && notHidden;
     });
 
     mine.forEach((r) => {

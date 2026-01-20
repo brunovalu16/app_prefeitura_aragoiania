@@ -30,8 +30,6 @@ import {
   Card,
   Container,
   DividerSpace,
-  FieldInput,
-  FieldLabel,
   Grid,
   Header,
   HeaderContent,
@@ -967,27 +965,6 @@ export default function Exameseconsultas({ navigation }) {
 
             {/* ================== AGENDAMENTO ================== */}
 
-            {/* ✅ INPUT ISOLADO (SEMPRE APARECE) */}
-            <FieldLabel>
-              Agendamento de Transporte{"\n"}
-              <FieldLabel
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  color: "red",
-                }}
-              >
-                (A prefeitura irá confirmar)
-              </FieldLabel>
-            </FieldLabel>
-            <FieldInput
-              placeholder="Digite aqui (ex: 20/01 às 14:30, pegar na UBS X)"
-              value={transporte}
-              onChangeText={setTransporte}
-              returnKeyType="done"
-            />
-
             <SectionTitle>Serviços emergenciais</SectionTitle>
 
             <Grid>
@@ -1025,7 +1002,7 @@ export default function Exameseconsultas({ navigation }) {
                     color={theme.colors.purple}
                   />
                 </MiniIconBox>
-                <MiniText numberOfLines={2}>Remoção</MiniText>
+                <MiniText numberOfLines={2}>Transporte</MiniText>
               </MiniCard>
 
               <MiniCard activeOpacity={0.9} onPress={() => {}}>

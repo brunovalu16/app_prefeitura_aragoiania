@@ -58,10 +58,6 @@ function parseDescricao(descricaoRaw) {
     clinica: map["clínica"] || map["clinica"] || "",
     exame: map["exame"] || "",
     procedimento: map["procedimento"] || "",
-    transporte:
-      map["agendamento de transporte"] ||
-      map["agendamento de transporte "] ||
-      "",
     data: map["data"] || "",
     horario: map["horário"] || map["horario"] || "",
     lines,
@@ -89,6 +85,8 @@ export default function ReplyExameseconsultas({ navigation, route }) {
       { value: "pendente", label: "PENDENTE", color: "#EB5757" }, // vermelho
       { value: "recusado", label: "RECUSADO", color: "#B00020" }, // vermelho escuro
       { value: "liberado", label: "LIBERADO", color: "#27AE60" }, // verde
+
+      { value: "concluido", label: "CONCLUÍDO" },
     ],
     [],
   );
@@ -96,7 +94,8 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   useEffect(() => {
     if (!data) return;
 
-    setParecerDraft((data?.parecer || "pendente").toLowerCase());
+    // ✅ padrão correto: analise
+    setParecerDraft(String(data?.parecer || "analise").toLowerCase());
     setJustificativaDraft(String(data?.justificativa || ""));
   }, [data]);
 
@@ -134,9 +133,13 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   );
 
   useEffect(() => {
-    // ✅ status sempre acompanha parecer (pra admin e usuário)
+    // ✅ status acompanha parecer, EXCETO quando for "concluido"
     if (!parecerDraft) return;
-    setStatusDraft(String(parecerDraft).toLowerCase());
+
+    const p = String(parecerDraft).toLowerCase();
+    if (p === "concluido") return; // ❌ não sincroniza
+
+    setStatusDraft(p);
   }, [parecerDraft]);
 
   async function handleSaveAll() {
@@ -146,15 +149,24 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
       setSaving(true);
 
-      // ✅ aqui você coloca tudo que quiser salvar no futuro (notes, etc.)
+      const parecerLower = String(parecerDraft || "").toLowerCase();
+      const isConcluido = parecerLower === "concluido";
+
       await updateRequestStatus({
         requestId,
-        status: statusDraft,
         userId: auth.currentUser?.uid,
+
         parecer: parecerDraft,
         justificativa: justificativaDraft,
-        // notes: { ... } // quando adicionar
+
+        // ✅ só atualiza status quando NÃO for "concluido"
+        status: isConcluido ? null : statusDraft,
+
+        // ✅ some do app quando "concluido"
+        isHidden: isConcluido,
       });
+
+      Alert.alert("Sucesso", "Alterações salvas!");
     } catch (e) {
       console.log("❌ Erro ao salvar:", e);
       Alert.alert("Erro", "Não foi possível salvar as alterações.");
@@ -544,6 +556,9 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                           const selected =
                             String(parecerDraft || "").toLowerCase() ===
                             opt.value;
+
+                          const optColor =
+                            opt.color || theme.colors.textSecondary;
                           return (
                             <TouchableOpacity
                               key={opt.value}
@@ -566,14 +581,20 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                                   gap: 10,
                                 }}
                               >
+                                {/* ✅ bolinha: só pinta se tiver cor */}
                                 <View
                                   style={{
                                     width: 10,
                                     height: 10,
                                     borderRadius: 99,
-                                    backgroundColor: opt.color,
+                                    backgroundColor: opt.color
+                                      ? opt.color
+                                      : "transparent",
+                                    borderWidth: opt.color ? 0 : 1,
+                                    borderColor: theme.colors.border,
                                   }}
                                 />
+
                                 <Text
                                   style={{
                                     color: theme.colors.text,
@@ -593,7 +614,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                                 size={20}
                                 color={
                                   selected
-                                    ? opt.color
+                                    ? optColor
                                     : theme.colors.textSecondary
                                 }
                               />

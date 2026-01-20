@@ -116,9 +116,7 @@ export default function Recebesolicitacoes({ navigation }) {
     const map = {};
 
     // ✅ usuário não vê concluída
-    const visibleRequests = (requests || []).filter(
-      (r) => (r?.status || "").toLowerCase() !== "concluida",
-    );
+    const visibleRequests = (requests || []).filter((r) => !r?.isHidden);
 
     visibleRequests.forEach((r) => {
       const areaId = r?.areaId || "sem_area";

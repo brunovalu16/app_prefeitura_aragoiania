@@ -73,24 +73,28 @@ export async function updateRequestStatus({
   userId,
   notes,
 
-  // ✅ NOVO (parecer do admin)
-  parecer, // "liberado" | "pendente" | "recusado"
-  justificativa, // string
+  parecer,
+  justificativa,
+
+  // ✅ NOVO
+  isHidden, // boolean
 }) {
   if (!requestId) throw new Error("requestId obrigatório");
 
   const db = getFirestore();
-  const ref = doc(db, "requests", requestId);
+  const refDoc = doc(db, "requests", requestId);
 
   const payload = {
     statusUpdatedAt: serverTimestamp(),
     statusUpdatedBy: userId || null,
   };
 
-  // ✅ status é opcional agora (pra poder salvar só parecer/justificativa)
-  if (status) payload.status = status;
+  // status opcional
+  if (typeof status === "string" && status.trim()) {
+    payload.status = String(status).toLowerCase();
+  }
 
-  // ✅ se vier notas, salva também
+  // notes
   if (notes && typeof notes === "object") {
     if (typeof notes.noteAnalise === "string")
       payload.noteAnalise = notes.noteAnalise;
@@ -100,9 +104,9 @@ export async function updateRequestStatus({
       payload.noteExecucao = notes.noteExecucao;
   }
 
-  // ✅ parecer do admin
-  if (parecer) {
-    payload.parecer = parecer;
+  // parecer + justificativa
+  if (typeof parecer === "string" && parecer.trim()) {
+    payload.parecer = String(parecer).toLowerCase();
     payload.parecerUpdatedAt = serverTimestamp();
     payload.parecerUpdatedBy = userId || null;
   }
@@ -111,7 +115,14 @@ export async function updateRequestStatus({
     payload.justificativa = justificativa;
   }
 
-  await updateDoc(ref, payload);
+  // ✅ esconder (concluído)
+  if (typeof isHidden === "boolean") {
+    payload.isHidden = isHidden;
+    payload.hiddenAt = isHidden ? serverTimestamp() : null;
+    payload.hiddenBy = isHidden ? userId || null : null;
+  }
+
+  await updateDoc(refDoc, payload);
 }
 
 // ✅ apaga arquivo do Storage por URL (se der erro, não quebra)

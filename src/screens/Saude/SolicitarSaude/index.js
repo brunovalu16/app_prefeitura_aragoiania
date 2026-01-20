@@ -54,6 +54,12 @@ export default function SolicitarSaude({ navigation }) {
       icon: "heart-outline",
       onPress: () => {},
     },
+    {
+      id: "Transporte",
+      label: "Transporte",
+      icon: "car-outline",
+      onPress: () => {},
+    },
   ];
 
   return (
