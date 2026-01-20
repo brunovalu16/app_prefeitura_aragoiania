@@ -72,35 +72,43 @@ export async function updateRequestStatus({
   status,
   userId,
   notes,
+
+  // ✅ NOVO (parecer do admin)
+  parecer, // "liberado" | "pendente" | "recusado"
+  justificativa, // string
 }) {
   if (!requestId) throw new Error("requestId obrigatório");
-  if (!status) throw new Error("status obrigatório");
 
   const db = getFirestore();
   const ref = doc(db, "requests", requestId);
 
-  // normaliza status
-  const normalizedStatus = String(status).toLowerCase();
-
   const payload = {
-    status: normalizedStatus,
     statusUpdatedAt: serverTimestamp(),
     statusUpdatedBy: userId || null,
   };
 
-  // ✅ salva notas apenas se vierem corretamente
+  // ✅ status é opcional agora (pra poder salvar só parecer/justificativa)
+  if (status) payload.status = status;
+
+  // ✅ se vier notas, salva também
   if (notes && typeof notes === "object") {
-    if (typeof notes.noteAnalise === "string") {
+    if (typeof notes.noteAnalise === "string")
       payload.noteAnalise = notes.noteAnalise;
-    }
-
-    if (typeof notes.notePendente === "string") {
+    if (typeof notes.notePendente === "string")
       payload.notePendente = notes.notePendente;
-    }
-
-    if (typeof notes.noteExecucao === "string") {
+    if (typeof notes.noteExecucao === "string")
       payload.noteExecucao = notes.noteExecucao;
-    }
+  }
+
+  // ✅ parecer do admin
+  if (parecer) {
+    payload.parecer = parecer;
+    payload.parecerUpdatedAt = serverTimestamp();
+    payload.parecerUpdatedBy = userId || null;
+  }
+
+  if (typeof justificativa === "string") {
+    payload.justificativa = justificativa;
   }
 
   await updateDoc(ref, payload);

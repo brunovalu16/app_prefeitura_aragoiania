@@ -4,7 +4,7 @@ import HomeHeader from "../components/HomeHeader";
 
 import Areas from "../screens/Areas";
 import Home from "../screens/Home";
-import Solicitar from "../screens/Solicitar";
+import Solicitar from "../screens/Replys/Solicitar";
 
 import Recebesolicitacoes from "../screens/Recebesolicitacoes";
 

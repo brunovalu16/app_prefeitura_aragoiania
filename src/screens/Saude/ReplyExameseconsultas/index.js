@@ -6,6 +6,7 @@ import {
   Alert,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -74,18 +75,47 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [statusOpen, setStatusOpen] = useState(false);
   const [statusDraft, setStatusDraft] = useState(null);
 
-  const statusOptions = useMemo(
+  //=========================================================================
+
+  const [parecerOpen, setParecerOpen] = useState(false);
+  const [parecerDraft, setParecerDraft] = useState(null); // "liberado" | "pendente" | "recusado"
+  const [justificativaDraft, setJustificativaDraft] = useState("");
+
+  const parecerOptions = useMemo(
     () => [
-      { value: "analise", label: "EM ANÁLISE", color: "#ebb105" },
-      { value: "pendente", label: "PENDENTE", color: "#EB5757" },
-      { value: "execucao", label: "AGUARDANDO", color: "#27AE60" },
-      { value: "concluida", label: "CONCLUÍDA", color: "#2D9CDB" },
+      { value: "analise", label: "ANÁLISE", color: "#ebb105" }, // amarelo
+      { value: "pendente", label: "PENDENTE", color: "#EB5757" }, // vermelho
+      { value: "recusado", label: "RECUSADO", color: "#B00020" }, // vermelho escuro
+      { value: "liberado", label: "LIBERADO", color: "#27AE60" }, // verde
     ],
     [],
   );
+
+  useEffect(() => {
+    if (!data) return;
+
+    setParecerDraft((data?.parecer || "pendente").toLowerCase());
+    setJustificativaDraft(String(data?.justificativa || ""));
+  }, [data]);
+
+  const parecerInfo = useMemo(() => {
+    const v = String(parecerDraft || data?.parecer || "pendente").toLowerCase();
+    return (
+      parecerOptions.find((o) => o.value === v) || {
+        value: v,
+        label: v.toUpperCase(),
+        color: theme.colors.textSecondary,
+      }
+    );
+  }, [parecerDraft, data?.parecer, parecerOptions, theme.colors.textSecondary]);
+
+  const bolinhaColor = parecerInfo.color;
+
+  //=========================================================================
+
+  const statusOptions = parecerOptions; // ✅ status = parecer (mesmas opções)
 
   const [saving, setSaving] = useState(false);
 
@@ -94,12 +124,20 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     (auth.currentUser?.email || "").toLowerCase() ===
     "brunovalu16@gmail.com".toLowerCase();
 
-  const currentStatus = String(data?.status || "analise").toLowerCase();
   const hasChanges = !!(
     isAdmin &&
-    statusDraft &&
-    statusDraft !== currentStatus
+    ((statusDraft &&
+      statusDraft !== String(data?.status || "").toLowerCase()) ||
+      (parecerDraft &&
+        parecerDraft !== String(data?.parecer || "pendente").toLowerCase()) ||
+      String(justificativaDraft || "") !== String(data?.justificativa || ""))
   );
+
+  useEffect(() => {
+    // ✅ status sempre acompanha parecer (pra admin e usuário)
+    if (!parecerDraft) return;
+    setStatusDraft(String(parecerDraft).toLowerCase());
+  }, [parecerDraft]);
 
   async function handleSaveAll() {
     try {
@@ -113,10 +151,10 @@ export default function ReplyExameseconsultas({ navigation, route }) {
         requestId,
         status: statusDraft,
         userId: auth.currentUser?.uid,
-        // notes: { ... } // quando você adicionar
+        parecer: parecerDraft,
+        justificativa: justificativaDraft,
+        // notes: { ... } // quando adicionar
       });
-
-      setStatusOpen(false);
     } catch (e) {
       console.log("❌ Erro ao salvar:", e);
       Alert.alert("Erro", "Não foi possível salvar as alterações.");
@@ -181,15 +219,18 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     data?.requestTitle || "SOLICITAÇÃO SAÚDE - EXAMES E CONSULTAS";
 
   const statusInfo = useMemo(() => {
-    const current = String(data?.status || "analise").toLowerCase();
+    const current = String(
+      statusDraft || data?.status || "analise",
+    ).toLowerCase();
+
     return (
       statusOptions.find((o) => o.value === current) || {
         value: current,
-        label: String(data?.status || "—").toUpperCase(),
-        color: "#828282",
+        label: current.toUpperCase(),
+        color: theme.colors.textSecondary,
       }
     );
-  }, [data?.status, statusOptions]);
+  }, [statusDraft, data?.status, statusOptions, theme.colors.textSecondary]);
 
   const draftInfo = useMemo(() => {
     const v = String(
@@ -277,13 +318,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
             ) : (
               <>
                 {/* STATUS */}
-                <OptionRow
-                  activeOpacity={isAdmin ? 0.85 : 1}
-                  onPress={() => {
-                    if (!isAdmin) return;
-                    setStatusOpen((v) => !v);
-                  }}
-                >
+                <OptionRow activeOpacity={1}>
                   <OptionLeft>
                     <Ionicons
                       name="information-circle-outline"
@@ -319,92 +354,22 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         {draftInfo.label}
                       </SelectedPillText>
                     </SelectedPill>
-
-                    {isAdmin ? (
-                      <Ionicons
-                        name={statusOpen ? "chevron-up" : "chevron-down"}
-                        size={18}
-                        color={theme.colors.cinza}
-                      />
-                    ) : null}
                   </View>
                 </OptionRow>
-
-                {/* ✅ ACCORDION (apenas admin) */}
-                {isAdmin && statusOpen ? (
-                  <View
-                    style={{
-                      marginTop: 10,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 12,
-                      backgroundColor: theme.colors.background,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {statusOptions.map((opt) => {
-                      const selected = statusDraft === opt.value;
-                      return (
-                        <TouchableOpacity
-                          key={opt.value}
-                          activeOpacity={0.85}
-                          onPress={() => setStatusDraft(opt.value)}
-                          style={{
-                            paddingVertical: 12,
-                            paddingHorizontal: 12,
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            borderBottomWidth: 1,
-                            borderBottomColor: theme.colors.border,
-                          }}
-                        >
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 10,
-                              flexShrink: 0,
-                            }}
-                          >
-                            <View
-                              style={{
-                                width: 10,
-                                height: 10,
-                                borderRadius: 99,
-                                backgroundColor: opt.color,
-                              }}
-                            />
-                            <Text
-                              style={{
-                                color: theme.colors.text,
-                                fontWeight: "800",
-                              }}
-                            >
-                              {opt.label}
-                            </Text>
-                          </View>
-
-                          <Ionicons
-                            name={
-                              selected ? "checkmark-circle" : "ellipse-outline"
-                            }
-                            size={20}
-                            color={
-                              selected ? opt.color : theme.colors.textSecondary
-                            }
-                          />
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                ) : null}
 
                 <DividerSpace />
 
                 {/* MÉDICO */}
                 <OptionRow activeOpacity={1}>
                   <OptionLeft>
+                    <View
+                      style={{
+                        width: 15,
+                        height: 15,
+                        borderRadius: 99,
+                        backgroundColor: bolinhaColor,
+                      }}
+                    />
                     <Ionicons
                       name="medkit-outline"
                       size={18}
@@ -425,6 +390,14 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                 {/* CLÍNICA */}
                 <OptionRow activeOpacity={1}>
                   <OptionLeft>
+                    <View
+                      style={{
+                        width: 15,
+                        height: 15,
+                        borderRadius: 99,
+                        backgroundColor: bolinhaColor,
+                      }}
+                    />
                     <Ionicons
                       name="business-outline"
                       size={18}
@@ -447,6 +420,14 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                 {/* EXAME */}
                 <OptionRow activeOpacity={1}>
                   <OptionLeft>
+                    <View
+                      style={{
+                        width: 15,
+                        height: 15,
+                        borderRadius: 99,
+                        backgroundColor: bolinhaColor,
+                      }}
+                    />
                     <Ionicons
                       name="document-text-outline"
                       size={18}
@@ -469,6 +450,14 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                 {/* PROCEDIMENTO */}
                 <OptionRow activeOpacity={1}>
                   <OptionLeft>
+                    <View
+                      style={{
+                        width: 15,
+                        height: 15,
+                        borderRadius: 99,
+                        backgroundColor: bolinhaColor,
+                      }}
+                    />
                     <Ionicons
                       name="fitness-outline"
                       size={18}
@@ -490,6 +479,203 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
                 <DividerSpace />
 
+                {isAdmin ? (
+                  <View style={{ marginTop: 12 }}>
+                    {/* LINHA DO "PARECER" */}
+                    <OptionRow
+                      activeOpacity={0.85}
+                      onPress={() => setParecerOpen((v) => !v)}
+                    >
+                      <OptionLeft>
+                        <Ionicons
+                          name="shield-checkmark-outline"
+                          size={18}
+                          color={parecerInfo.color}
+                        />
+                        <OptionText>Parecer</OptionText>
+                      </OptionLeft>
+
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 10,
+                        }}
+                      >
+                        <SelectedPill
+                          style={{
+                            backgroundColor: parecerInfo.color + "22",
+                            borderWidth: 1,
+                            borderColor: parecerInfo.color,
+                            maxWidth: 180,
+                            minWidth: 120,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <SelectedPillText
+                            numberOfLines={1}
+                            style={{ color: parecerInfo.color }}
+                          >
+                            {parecerInfo.label}
+                          </SelectedPillText>
+                        </SelectedPill>
+
+                        <Ionicons
+                          name={parecerOpen ? "chevron-up" : "chevron-down"}
+                          size={18}
+                          color={theme.colors.cinza}
+                        />
+                      </View>
+                    </OptionRow>
+
+                    {/* ACCORDION */}
+                    {parecerOpen ? (
+                      <View
+                        style={{
+                          marginTop: 10,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          borderRadius: 12,
+                          backgroundColor: theme.colors.background,
+                          overflow: "hidden",
+                        }}
+                      >
+                        {parecerOptions.map((opt) => {
+                          const selected =
+                            String(parecerDraft || "").toLowerCase() ===
+                            opt.value;
+                          return (
+                            <TouchableOpacity
+                              key={opt.value}
+                              activeOpacity={0.85}
+                              onPress={() => setParecerDraft(opt.value)}
+                              style={{
+                                paddingVertical: 12,
+                                paddingHorizontal: 12,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                borderBottomWidth: 1,
+                                borderBottomColor: theme.colors.border,
+                              }}
+                            >
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 10,
+                                }}
+                              >
+                                <View
+                                  style={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: 99,
+                                    backgroundColor: opt.color,
+                                  }}
+                                />
+                                <Text
+                                  style={{
+                                    color: theme.colors.text,
+                                    fontWeight: "800",
+                                  }}
+                                >
+                                  {opt.label}
+                                </Text>
+                              </View>
+
+                              <Ionicons
+                                name={
+                                  selected
+                                    ? "checkmark-circle"
+                                    : "ellipse-outline"
+                                }
+                                size={20}
+                                color={
+                                  selected
+                                    ? opt.color
+                                    : theme.colors.textSecondary
+                                }
+                              />
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+
+                    {/* INPUT JUSTIFICATIVA */}
+                    <View style={{ marginTop: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "900",
+                          color: theme.colors.text,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Justificativa
+                      </Text>
+
+                      <View
+                        style={{
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          borderRadius: 12,
+                          backgroundColor: theme.colors.background,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                        }}
+                      >
+                        <TextInput
+                          value={justificativaDraft}
+                          onChangeText={setJustificativaDraft}
+                          placeholder="Digite o motivo / orientação para o usuário..."
+                          placeholderTextColor={theme.colors.textSecondary}
+                          multiline
+                          style={{
+                            minHeight: 80,
+                            color: theme.colors.text,
+                            fontWeight: "700",
+                          }}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* INPUT JUSTIFICATIVA */}
+                {!isAdmin && (data?.justificativa || "").trim() ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "900",
+                        color: theme.colors.text,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Justificativa da Prefeitura
+                    </Text>
+
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.background,
+                        paddingHorizontal: 12,
+                        paddingVertical: 12,
+                      }}
+                    >
+                      <Text
+                        style={{ color: theme.colors.text, fontWeight: "700" }}
+                      >
+                        {String(data?.justificativa || "")}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
                 {/* TRANSPORTE */}
                 <View style={{ marginTop: 2 }}></View>
 
@@ -507,9 +693,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         color: theme.colors.text,
                         marginBottom: 10,
                       }}
-                    >
-                      Clínicas disponíveis no slot (admin)
-                    </Text>
+                    ></Text>
 
                     {!clinicasDisponiveisNoSlot.length ? (
                       <Text style={{ color: theme.colors.textSecondary }}>
