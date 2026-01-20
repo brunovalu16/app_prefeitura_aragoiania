@@ -62,13 +62,11 @@ export const DescriptionInput = styled.TextInput.attrs({
 })`
   height: 150px;
   border-radius: 10px;
-  background: #F3F4F6;
+  background: #f3f4f6;
   padding: 12px;
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: 15px;
 `;
-
-
 
 export const Helper = styled.Text`
   font-size: 15px;
@@ -110,7 +108,7 @@ export const CepInput = styled.TextInput`
   border-radius: 8px;
   background: ${({ theme }) => theme.colors.textMuted2};
   padding: 0 12px;
-  color: #3A0B6C;
+  color: #3a0b6c;
   font-weight: 800;
 `;
 
@@ -122,7 +120,8 @@ export const CounterRow = styled.View`
 
 export const CounterText = styled.Text`
   font-size: 12px;
-  color: ${({ theme, error }) => (error ? theme.colors.red : theme.colors.textMuted)};
+  color: ${({ theme, error }) =>
+    error ? theme.colors.red : theme.colors.textMuted};
 `;
 
 export const PreviewGrid = styled.View`
@@ -164,8 +163,6 @@ export const RemoveBadgeText = styled.Text`
   margin-top: -2px;
 `;
 
-
-
 export const AddressRow = styled.View`
   margin-top: 12px;
 `;
@@ -173,7 +170,7 @@ export const AddressRow = styled.View`
 export const AddressInput = styled.TextInput`
   min-height: 44px;
   border-radius: 10px;
-  background: #F3F4F6;
+  background: #f3f4f6;
   padding: 12px;
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: 15px;
@@ -182,7 +179,7 @@ export const AddressInput = styled.TextInput`
 export const PostNumberInput = styled.TextInput`
   height: 44px;
   border-radius: 10px;
-  background: #F3F4F6;
+  background: #f3f4f6;
   padding: 0 12px;
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: 15px;

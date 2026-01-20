@@ -79,20 +79,28 @@ export async function updateRequestStatus({
   const db = getFirestore();
   const ref = doc(db, "requests", requestId);
 
+  // normaliza status
+  const normalizedStatus = String(status).toLowerCase();
+
   const payload = {
-    status,
+    status: normalizedStatus,
     statusUpdatedAt: serverTimestamp(),
     statusUpdatedBy: userId || null,
   };
 
-  // ✅ se vier notas, salva também
+  // ✅ salva notas apenas se vierem corretamente
   if (notes && typeof notes === "object") {
-    if (typeof notes.noteAnalise === "string")
+    if (typeof notes.noteAnalise === "string") {
       payload.noteAnalise = notes.noteAnalise;
-    if (typeof notes.notePendente === "string")
+    }
+
+    if (typeof notes.notePendente === "string") {
       payload.notePendente = notes.notePendente;
-    if (typeof notes.noteExecucao === "string")
+    }
+
+    if (typeof notes.noteExecucao === "string") {
       payload.noteExecucao = notes.noteExecucao;
+    }
   }
 
   await updateDoc(ref, payload);

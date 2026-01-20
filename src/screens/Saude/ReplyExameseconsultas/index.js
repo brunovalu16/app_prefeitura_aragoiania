@@ -1,11 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useTheme } from "styled-components/native";
 
 import { getAuth } from "firebase/auth";
-import { subscribeRequestById } from "../../../services/requests";
+import {
+  subscribeRequestById,
+  updateRequestStatus,
+} from "../../../services/requests";
 
 import {
   BackBtn,
@@ -64,10 +74,62 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [statusDraft, setStatusDraft] = useState(null);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "analise", label: "EM ANÁLISE", color: "#ebb105" },
+      { value: "pendente", label: "PENDENTE", color: "#EB5757" },
+      { value: "execucao", label: "AGUARDANDO", color: "#27AE60" },
+      { value: "concluida", label: "CONCLUÍDA", color: "#2D9CDB" },
+    ],
+    [],
+  );
+
+  const [saving, setSaving] = useState(false);
+
   const auth = getAuth();
   const isAdmin =
     (auth.currentUser?.email || "").toLowerCase() ===
     "brunovalu16@gmail.com".toLowerCase();
+
+  const currentStatus = String(data?.status || "analise").toLowerCase();
+  const hasChanges = !!(
+    isAdmin &&
+    statusDraft &&
+    statusDraft !== currentStatus
+  );
+
+  async function handleSaveAll() {
+    try {
+      if (!requestId) return;
+      if (!isAdmin) return;
+
+      setSaving(true);
+
+      // ✅ aqui você coloca tudo que quiser salvar no futuro (notes, etc.)
+      await updateRequestStatus({
+        requestId,
+        status: statusDraft,
+        userId: auth.currentUser?.uid,
+        // notes: { ... } // quando você adicionar
+      });
+
+      setStatusOpen(false);
+    } catch (e) {
+      console.log("❌ Erro ao salvar:", e);
+      Alert.alert("Erro", "Não foi possível salvar as alterações.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // quando carregar do banco, sincroniza o draft
+  useEffect(() => {
+    if (!data?.status) return;
+    setStatusDraft(String(data.status).toLowerCase());
+  }, [data?.status]);
 
   useEffect(() => {
     if (!requestId) {
@@ -109,8 +171,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const procedimentoSelecionado =
     saudeData?.procedimentoSelecionado || parsed.procedimento || "";
 
-  const transporte = (saudeData?.transporte || parsed.transporte || "").trim();
-
   const clinicasDisponiveisNoSlot = Array.isArray(
     saudeData?.clinicasDisponiveisNoSlot,
   )
@@ -120,14 +180,23 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const requestTitle =
     data?.requestTitle || "SOLICITAÇÃO SAÚDE - EXAMES E CONSULTAS";
 
-  const statusLabel = useMemo(() => {
-    const s = String(data?.status || "analise").toLowerCase();
-    if (s === "analise") return "EM ANÁLISE";
-    if (s === "pendente") return "PENDENTE";
-    if (s === "execucao") return "EM EXECUÇÃO";
-    if (s === "concluida") return "CONCLUÍDA";
-    return String(data?.status || "—").toUpperCase();
-  }, [data?.status]);
+  const statusInfo = useMemo(() => {
+    const current = String(data?.status || "analise").toLowerCase();
+    return (
+      statusOptions.find((o) => o.value === current) || {
+        value: current,
+        label: String(data?.status || "—").toUpperCase(),
+        color: "#828282",
+      }
+    );
+  }, [data?.status, statusOptions]);
+
+  const draftInfo = useMemo(() => {
+    const v = String(
+      statusDraft || statusInfo.value || "analise",
+    ).toLowerCase();
+    return statusOptions.find((o) => o.value === v) || statusInfo;
+  }, [statusDraft, statusInfo, statusOptions]);
 
   const medicoLabel = useMemo(() => {
     if (medicoAgendado && dataAgendada && horaAgendada) {
@@ -208,22 +277,128 @@ export default function ReplyExameseconsultas({ navigation, route }) {
             ) : (
               <>
                 {/* STATUS */}
-                <OptionRow activeOpacity={1}>
+                <OptionRow
+                  activeOpacity={isAdmin ? 0.85 : 1}
+                  onPress={() => {
+                    if (!isAdmin) return;
+                    setStatusOpen((v) => !v);
+                  }}
+                >
                   <OptionLeft>
                     <Ionicons
                       name="information-circle-outline"
                       size={18}
-                      color={theme.colors.cinza}
+                      color={draftInfo.color}
                     />
                     <OptionText>Status</OptionText>
                   </OptionLeft>
 
-                  <SelectedPill>
-                    <SelectedPillText numberOfLines={1}>
-                      {statusLabel}
-                    </SelectedPillText>
-                  </SelectedPill>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <SelectedPill
+                      style={{
+                        backgroundColor: draftInfo.color + "22",
+                        borderWidth: 1,
+                        borderColor: draftInfo.color,
+
+                        // ✅ deixa caber "PENDENTE", "EM ANÁLISE", "AGUARDANDO" inteiro
+                        maxWidth: 180,
+                        minWidth: 120,
+                        flexShrink: 0, // ✅ não deixa encolher e cortar
+                      }}
+                    >
+                      <SelectedPillText
+                        numberOfLines={1}
+                        style={{ color: draftInfo.color }}
+                      >
+                        {draftInfo.label}
+                      </SelectedPillText>
+                    </SelectedPill>
+
+                    {isAdmin ? (
+                      <Ionicons
+                        name={statusOpen ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color={theme.colors.cinza}
+                      />
+                    ) : null}
+                  </View>
                 </OptionRow>
+
+                {/* ✅ ACCORDION (apenas admin) */}
+                {isAdmin && statusOpen ? (
+                  <View
+                    style={{
+                      marginTop: 10,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      borderRadius: 12,
+                      backgroundColor: theme.colors.background,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {statusOptions.map((opt) => {
+                      const selected = statusDraft === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.value}
+                          activeOpacity={0.85}
+                          onPress={() => setStatusDraft(opt.value)}
+                          style={{
+                            paddingVertical: 12,
+                            paddingHorizontal: 12,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.colors.border,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 10,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <View
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 99,
+                                backgroundColor: opt.color,
+                              }}
+                            />
+                            <Text
+                              style={{
+                                color: theme.colors.text,
+                                fontWeight: "800",
+                              }}
+                            >
+                              {opt.label}
+                            </Text>
+                          </View>
+
+                          <Ionicons
+                            name={
+                              selected ? "checkmark-circle" : "ellipse-outline"
+                            }
+                            size={20}
+                            color={
+                              selected ? opt.color : theme.colors.textSecondary
+                            }
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : null}
 
                 <DividerSpace />
 
@@ -316,46 +491,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                 <DividerSpace />
 
                 {/* TRANSPORTE */}
-                <View style={{ marginTop: 2 }}>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: "900",
-                      color: theme.colors.text,
-                      marginBottom: 8,
-                    }}
-                  >
-                    Agendamento de Transporte
-                  </Text>
-
-                  <View
-                    style={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 12,
-                      borderRadius: 12,
-                      backgroundColor: theme.colors.background,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: transporte
-                          ? theme.colors.text
-                          : theme.colors.textSecondary,
-                        fontWeight: "700",
-                      }}
-                    >
-                      {transporte ? transporte : "Não informado"}
-                    </Text>
-
-                    <Text
-                      style={{ color: "red", marginTop: 6, fontWeight: "800" }}
-                    >
-                      (A prefeitura irá confirmar)
-                    </Text>
-                  </View>
-                </View>
+                <View style={{ marginTop: 2 }}></View>
 
                 <DividerSpace />
 
@@ -415,6 +551,48 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                 ) : null}
               </>
             )}
+
+            {/* ✅ BOTÃO SALVAR (GERAL) */}
+            {isAdmin ? (
+              <View style={{ padding: 12 }}>
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  disabled={!hasChanges || saving}
+                  onPress={handleSaveAll}
+                  style={{
+                    height: 44,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor:
+                      !hasChanges || saving
+                        ? theme.colors.border
+                        : theme.colors.purple,
+                  }}
+                >
+                  {saving ? (
+                    <ActivityIndicator />
+                  ) : (
+                    <Text style={{ color: "#fff", fontWeight: "900" }}>
+                      SALVAR ALTERAÇÕES
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                {!hasChanges ? (
+                  <Text
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: theme.colors.textSecondary,
+                      textAlign: "center",
+                    }}
+                  >
+                    Nenhuma alteração pendente.
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
           </Card>
         </Body>
       </ScrollView>

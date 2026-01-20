@@ -10,6 +10,8 @@ import Recebesolicitacoes from "../screens/Recebesolicitacoes";
 
 import Replyiluminacao from "../screens/Replys/Replyiluminacao";
 
+import AdminUserAreas from "../screens/AdminUserAreas";
+
 import CepPreenchido from "../screens/CepPreenchido";
 import DocumentCameraScreen from "../screens/DocumentCameraScreen";
 import User from "../screens/User";
@@ -65,6 +67,7 @@ export default function HomeStack() {
       <Stack.Screen name="AdminAreas" component={AdminAreas} />
       <Stack.Screen name="AdminInboxArea" component={AdminInboxArea} />
       <Stack.Screen name="AdminUsersInbox" component={AdminUsersInbox} />
+      <Stack.Screen name="AdminUserAreas" component={AdminUserAreas} />
     </Stack.Navigator>
   );
 }

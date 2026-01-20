@@ -16,7 +16,7 @@ export default function HomeShortcuts({
     () => [
       { id: "cadastro", label: "CADASTRO" },
       { id: "solicitacoes", label: "SOLICITAÇÕES" },
-      { id: "diario", label: "DIÁRIO OFICIAL" },
+      { id: "financas", label: "FINANÇAS" },
       { id: "empregos", label: "EMPREGOS E CURSOS SINE" },
       { id: "saude", label: "NOTÍCIAS SAÚDE" },
       { id: "eventos", label: "EVENTOS" },
