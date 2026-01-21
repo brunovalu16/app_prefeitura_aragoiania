@@ -21,6 +21,7 @@ import Exameseconsultas from "../screens/Saude/Exameseconsultas";
 import RecebeSaude from "../screens/Saude/RecebeSaude";
 import ReplyExameseconsultas from "../screens/Saude/ReplyExameseconsultas";
 import SolicitarSaude from "../screens/Saude/SolicitarSaude";
+import Transporte from "../screens/Saude/Transporte";
 
 /** ADMIN */
 import AdminAreas from "../screens/AdminAreas";
@@ -51,6 +52,7 @@ export default function HomeStack() {
         component={ReplyExameseconsultas}
       />
       <Stack.Screen name="RecebeSaude" component={RecebeSaude} />
+      <Stack.Screen name="Transporte" component={Transporte} />
 
       {/* LISTAGEM */}
       <Stack.Screen name="Recebesolicitacoes" component={Recebesolicitacoes} />

@@ -100,7 +100,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   }, [data]);
 
   const parecerInfo = useMemo(() => {
-    const v = String(parecerDraft || data?.parecer || "pendente").toLowerCase();
+    const v = String(parecerDraft || data?.parecer || "analise").toLowerCase();
     return (
       parecerOptions.find((o) => o.value === v) || {
         value: v,

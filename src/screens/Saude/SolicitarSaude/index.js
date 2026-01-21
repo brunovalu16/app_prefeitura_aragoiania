@@ -58,7 +58,7 @@ export default function SolicitarSaude({ navigation }) {
       id: "Transporte",
       label: "Transporte",
       icon: "car-outline",
-      onPress: () => {},
+      onPress: () => navigation.navigate("Transporte"),
     },
   ];
 

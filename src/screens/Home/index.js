@@ -2,8 +2,8 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
+import AreaRequestsCard from "../../components/AreaRequestsCard"; // ✅ ADD
 import HomeBigCarousel from "../../components/HomeBigCarousel";
-import HomeLastRequestCard from "../../components/HomeLastRequestCard";
 import HomeRequestsList from "../../components/HomeRequestsList";
 
 import { auth } from "../../services/firebase";
@@ -13,35 +13,47 @@ import { Container } from "./styles";
 
 const ADMIN_EMAIL = "brunovalu16@gmail.com";
 
-// Pagina Home
+// ✅ mapa limpo de rotas por área (igual Recebesolicitacoes)
+const AREA_REPLY_ROUTE = {
+  iluminacao: "Replyiluminacao",
+  saude: "ReplyExameseconsultas",
+  defesa: "ReplyDefesa",
+};
+
+function navigateToReply(navigation, request) {
+  const route = AREA_REPLY_ROUTE[request?.areaId] || "Replyiluminacao";
+  navigation.navigate(route, { requestId: request?.id });
+}
 
 export default function Home({ navigation }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [uid, setUid] = useState(null);
 
   const [myRequests, setMyRequests] = useState([]);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       const email = (user?.email || "").toLowerCase();
       setIsAdmin(email === ADMIN_EMAIL.toLowerCase());
       setUid(user?.uid || null);
+      setAuthLoading(false);
     });
 
     return () => unsub();
   }, []);
 
   useEffect(() => {
-    if (!uid) return;
+    if (authLoading) return;
 
     const unsub = subscribeRequests({
-      userId: uid,
-      max: 50,
+      userId: isAdmin ? null : uid, // ✅ admin vê tudo
+      max: 200,
       onChange: (list) => setMyRequests(Array.isArray(list) ? list : []),
     });
 
     return () => unsub?.();
-  }, [uid]);
+  }, [uid, isAdmin, authLoading]);
 
   const items = isAdmin
     ? [
@@ -54,10 +66,43 @@ export default function Home({ navigation }) {
       ]
     : [];
 
-  const quickList = useMemo(() => {
-    return (myRequests || [])
-      .filter((r) => (r?.status || "").toLowerCase() !== "concluida")
-      .slice(0, 3);
+  // ✅ AGRUPA POR ÁREA (igual Recebesolicitacoes)
+  const groupedByAreaQuick = useMemo(() => {
+    const map = {};
+
+    // ✅ regras iguais: não mostrar hidden (concluída pode aparecer, como no Recebesolicitacoes)
+    const visibleRequests = (myRequests || []).filter((r) => !r?.isHidden);
+
+    visibleRequests.forEach((r) => {
+      const areaId = r?.areaId || "sem_area";
+
+      if (!map[areaId]) {
+        map[areaId] = {
+          areaId,
+          areaLabel: r?.areaLabel || String(areaId).toUpperCase(),
+          requests: [],
+        };
+      }
+
+      map[areaId].requests.push(r);
+    });
+
+    const arr = Object.values(map);
+
+    // ✅ ordena áreas por label
+    arr.sort((a, b) => (a.areaLabel || "").localeCompare(b.areaLabel || ""));
+
+    // ✅ ordena requests dentro de cada área por data (mais recente em cima)
+    arr.forEach((g) => {
+      g.requests.sort((a, b) => {
+        const ta = a?.createdAt?.toMillis?.() ?? 0;
+        const tb = b?.createdAt?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
+    });
+
+    // ✅ “atalho rápido”: mostra só as 3 primeiras áreas (ajuste se quiser)
+    return arr.slice(0, 3);
   }, [myRequests]);
 
   return (
@@ -71,27 +116,38 @@ export default function Home({ navigation }) {
 
         <HomeRequestsList
           items={items}
-          onPressItem={(item) => {
-            if (item.route) navigation.navigate(item.route);
-          }}
+          onPressItem={(item) => item.route && navigation.navigate(item.route)}
           onMenuPressItem={() => {}}
         />
 
+        {/* ✅ card mestre (accordion) por área */}
         <View style={{ paddingHorizontal: 12, marginTop: -160 }}>
-          {quickList.length ? (
-            quickList.map((r) => (
-              <View key={r.id} style={{ marginBottom: 10 }}>
-                <HomeLastRequestCard
-                  title="MINHAS SOLICITAÇÕES"
-                  subtitle={r.requestTitle}
-                  status={r.status || "analise"}
-                  onPress={() => navigation.navigate("Recebeiluminacao")}
-                  onMenuPress={() => {}}
-                />
-              </View>
+          {/* ✅ título */}
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              marginBottom: 12,
+              opacity: 0.85,
+              color: "#777777",
+              alignSelf: "center",
+            }}
+          >
+            Acesso rápido às suas solicitações
+          </Text>
+
+          {groupedByAreaQuick.length ? (
+            groupedByAreaQuick.map((group) => (
+              <AreaRequestsCard
+                key={group.areaId}
+                areaLabel={group.areaLabel}
+                requests={group.requests}
+                onPressRequest={(r) => navigateToReply(navigation, r)}
+                // onDeleteRequest={...} // opcional (na Home eu deixaria sem delete)
+              />
             ))
           ) : (
-            <Text style={{ opacity: 0.6 }}></Text>
+            <Text style={{ opacity: 0.6 }} />
           )}
         </View>
       </Container>

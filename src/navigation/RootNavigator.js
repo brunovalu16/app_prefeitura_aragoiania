@@ -11,6 +11,7 @@ import Exameseconsultas from "../screens/Saude/Exameseconsultas";
 import RecebeSaude from "../screens/Saude/RecebeSaude";
 import ReplyExameseconsultas from "../screens/Saude/ReplyExameseconsultas";
 import SolicitarSaude from "../screens/Saude/SolicitarSaude";
+import Transporte from "../screens/Saude/Transporte";
 import User from "../screens/User";
 
 const Stack = createNativeStackNavigator();
@@ -38,6 +39,7 @@ export default function RootNavigator() {
       <Stack.Screen name="RecebeSaude" component={RecebeSaude} />
       <Stack.Screen name="Exameseconsultas" component={Exameseconsultas} />
       <Stack.Screen name="SolicitarSaude" component={SolicitarSaude} />
+      <Stack.Screen name="Transporte" component={Transporte} />
       <Stack.Screen name="User" component={User} />
     </Stack.Navigator>
   );

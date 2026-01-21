@@ -137,11 +137,17 @@ export default function Replyiluminacao({ navigation, route }) {
 
       const userId = await getAuthUserId();
 
+      const statusLower = String(draftStatus || "").toLowerCase();
+      const isConcluida = statusLower === "concluida"; // ✅ iluminação usa "concluida"
+
       await updateRequestStatus({
         requestId,
-        status: draftStatus,
+        status: statusLower, // ✅ salva status normalizado
         userId,
         notes: { noteAnalise, notePendente, noteExecucao },
+
+        // ✅ REGRA GLOBAL: "concluída" some do app
+        isHidden: isConcluida,
       });
 
       Alert.alert("Sucesso", "Status atualizado!");
