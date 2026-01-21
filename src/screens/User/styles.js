@@ -20,8 +20,8 @@ export const TopRow = styled.View`
 `;
 
 export const AvatarBtn = styled.TouchableOpacity`
-  width: 70px;
-  height: 70px;
+  width: 100px;
+  height: 100px;
   border-radius: 5px;
 
   align-items: center;
@@ -41,7 +41,6 @@ export const AvatarImage = styled.Image`
 export const SusBlock = styled.View`
   flex: 1;
 `;
-
 
 /* =========================
    BOTÃO VOLTAR
@@ -85,14 +84,10 @@ export const InputLine = styled.View`
   border-bottom-color: ${({ theme }) => theme.colors.cinzaclaro};
 `;
 
-
-
 export const ValueText = styled.Text`
   font-size: 16px;
   color: ${({ theme }) => theme.colors.text};
 `;
-
-
 
 /* =========================
    LINHAS / COLUNAS
@@ -134,4 +129,11 @@ export const PhotoActionText = styled.Text`
   font-size: 12px;
   color: ${({ theme }) => theme.colors.cinza};
   font-weight: 600;
+`;
+
+export const ValueBox = styled.View`
+  height: 32px;
+  border-bottom-width: 1px;
+  border-bottom-color: ${({ theme }) => theme.colors.cinza};
+  justify-content: center;
 `;

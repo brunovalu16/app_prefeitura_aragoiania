@@ -1,7 +1,6 @@
 import { SafeAreaView } from "react-native-safe-area-context";
 import { styled } from "styled-components/native";
 
-
 export const Container = styled(SafeAreaView)`
   flex: 1;
   background: ${({ theme }) => theme.colors.textMuted2};
@@ -16,10 +15,8 @@ export const TopBack = styled.TouchableOpacity`
   align-items: center;
   justify-content: center;
 
-  align-self: flex-end;   /* 👈 empurra para a direita */
+  align-self: flex-end; /* 👈 empurra para a direita */
 `;
-
-
 
 export const LogoArea = styled.View`
   align-items: center;
@@ -46,7 +43,6 @@ export const PhotoRow = styled.View`
   align-items: center;
   justify-content: flex-start;
 `;
-
 
 export const PhotoBox = styled.View`
   width: 75px;
@@ -121,13 +117,13 @@ export const PasswordRow = styled.View`
   flex-direction: row;
   align-items: center;
   border-bottom-width: 1px;
-  border-bottom-color:  ${({ theme }) => theme.colors.cinza};
+  border-bottom-color: ${({ theme }) => theme.colors.cinza};
 `;
 
 export const PasswordInput = styled.TextInput`
   flex: 1;
   height: 32px;
-  color:  ${({ theme }) => theme.colors.cinza};
+  color: ${({ theme }) => theme.colors.cinza};
   padding-bottom: 6px;
 `;
 
@@ -190,9 +186,6 @@ export const InputBox = styled.TextInput`
   font-size: 13px;
 `;
 
-
-
-
 // ✅ POPUP BLOQUEIO (igual ao print com barra vermelha)
 export const AlertOverlay = styled.TouchableOpacity`
   flex: 1;
@@ -218,7 +211,6 @@ export const AlertCard = styled.TouchableOpacity.attrs({
   border-radius: 10px;
   overflow: hidden;
 `;
-
 
 export const AlertHeader = styled.View`
   height: 42px;
@@ -264,8 +256,31 @@ export const AlertOkText = styled.Text`
   font-weight: 800;
 `;
 
-
 export const FormLock = styled.View``;
 
+export const SusRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+`;
 
+export const AvatarBtn = styled.TouchableOpacity`
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  background: ${({ theme }) => theme.colors.cinzaclaro};
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+`;
 
+export const AvatarImage = styled.Image.attrs({
+  resizeMode: "cover",
+})`
+  width: 100%;
+  height: 100%;
+`;
+
+export const SusInput = styled(InputBox)`
+  flex: 1;
+`;

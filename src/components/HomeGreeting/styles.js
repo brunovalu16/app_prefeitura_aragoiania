@@ -20,7 +20,6 @@ export const BackButton = styled.TouchableOpacity`
   padding: 6px;
 `;
 
-
 export const GreetingRow = styled.View`
   flex-direction: row;
   align-items: center;
@@ -34,9 +33,9 @@ export const GreetingLeft = styled.View`
 `;
 
 export const Avatar = styled.View`
-  width: 42px;
-  height: 42px;
-  border-radius: 21px;
+  width: 70px;
+  height: 70px;
+  border-radius: 10px;
   border-width: 2;
   border-color: ${({ theme }) => theme.colors.textMuted};
   overflow: hidden;
@@ -80,9 +79,3 @@ export const LogoutText = styled.Text`
   font-size: 12px;
   font-weight: 700;
 `;
-
-
-
-
-
-
