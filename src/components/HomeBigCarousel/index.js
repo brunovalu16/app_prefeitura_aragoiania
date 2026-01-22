@@ -28,8 +28,8 @@ export default function HomeBigCarousel({ navigation }) {
       },
       {
         id: "serv_area_3",
-        title: "SERVIÇOS\nPOR ÁREA",
-        image: Images.logo_branca_aragoiania,
+        title: "HABITAÇÃO\nARAGOIANIA",
+        icon: "home-outline", // 🏠 ícone casa
         onPress: () => {},
       },
     ],
@@ -54,6 +54,7 @@ export default function HomeBigCarousel({ navigation }) {
           <ServiceCarouselCard
             title={item.title}
             image={item.image}
+            icon={item.icon}
             onPress={item.onPress}
             width={CARD_WIDTH}
             style={{

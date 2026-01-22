@@ -41,6 +41,10 @@ export default function HomeShortcuts({
       navigation.navigate("Recebesolicitacoes");
     }
 
+    if (item.id === "financas" || item.label === "FINANÇAS") {
+      navigation.navigate("Homefinancas");
+    }
+
     // ✅ continua disparando callback pra Home se você quiser usar depois
     if (onChange) onChange(item.label);
   }

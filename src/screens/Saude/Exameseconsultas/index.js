@@ -994,7 +994,10 @@ export default function Exameseconsultas({ navigation }) {
                 </MiniText>
               </MiniCard>
 
-              <MiniCard activeOpacity={0.9} onPress={() => {}}>
+              <MiniCard
+                activeOpacity={0.9}
+                onPress={() => navigation.navigate("Transporte")}
+              >
                 <MiniIconBox>
                   <Ionicons
                     name="car-outline"

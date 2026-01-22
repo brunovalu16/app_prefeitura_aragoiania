@@ -69,8 +69,15 @@ export default function SolicitarSaude({ navigation }) {
       showsVerticalScrollIndicator={false}
     >
       <Container>
-        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-          <HeaderTitle style={{ color: theme.colors.text }}>
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: 20,
+            alignSelf: "center",
+          }}
+        >
+          <HeaderTitle style={{ color: theme.colors.cinza }}>
             O que você precisa hoje?
           </HeaderTitle>
         </View>

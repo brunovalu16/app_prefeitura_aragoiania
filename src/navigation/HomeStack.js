@@ -17,6 +17,7 @@ import DocumentCameraScreen from "../screens/DocumentCameraScreen";
 import User from "../screens/User";
 
 /** SAÚDE */
+import Homefinancas from "../screens/Financas/Homefinancas";
 import Exameseconsultas from "../screens/Saude/Exameseconsultas";
 import RecebeSaude from "../screens/Saude/RecebeSaude";
 import ReplyExameseconsultas from "../screens/Saude/ReplyExameseconsultas";
@@ -53,6 +54,7 @@ export default function HomeStack() {
       />
       <Stack.Screen name="RecebeSaude" component={RecebeSaude} />
       <Stack.Screen name="Transporte" component={Transporte} />
+      <Stack.Screen name="Homefinancas" component={Homefinancas} />
 
       {/* LISTAGEM */}
       <Stack.Screen name="Recebesolicitacoes" component={Recebesolicitacoes} />

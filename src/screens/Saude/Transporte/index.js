@@ -318,12 +318,12 @@ export default function Transporte({ navigation }) {
         >
           <Text
             style={{
-              color: theme.colors.text,
+              color: theme.colors.cinza,
               fontWeight: "900",
               marginBottom: 8,
             }}
           >
-            Para qual endereço
+            Qual o endereço de destino?
           </Text>
           <View
             style={{
@@ -348,7 +348,7 @@ export default function Transporte({ navigation }) {
 
           <Text
             style={{
-              color: theme.colors.text,
+              color: theme.colors.cinza,
               fontWeight: "900",
               marginBottom: 8,
             }}

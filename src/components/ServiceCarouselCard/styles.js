@@ -20,7 +20,7 @@ export const Logo = styled.Image.attrs({
 })`
   width: 140px;
   height: 140px;
-  margin-bottom: -45
+  margin-bottom: -45;
 `;
 
 export const Title = styled.Text`

@@ -5,6 +5,7 @@ import Login from "../screens/Login";
 import AppTabs from "./AppTabs";
 
 /* FALLBACKS / ACESSO DIRETO */
+import Homefinancas from "../screens/Financas/Homefinancas";
 import Recebesolicitacoes from "../screens/Recebesolicitacoes";
 import Replyiluminacao from "../screens/Replys/Replyiluminacao";
 import Exameseconsultas from "../screens/Saude/Exameseconsultas";
@@ -40,6 +41,7 @@ export default function RootNavigator() {
       <Stack.Screen name="Exameseconsultas" component={Exameseconsultas} />
       <Stack.Screen name="SolicitarSaude" component={SolicitarSaude} />
       <Stack.Screen name="Transporte" component={Transporte} />
+      <Stack.Screen name="Homefinancas" component={Homefinancas} />
       <Stack.Screen name="User" component={User} />
     </Stack.Navigator>
   );
