@@ -219,3 +219,7 @@ export const SaveButtonText = styled.Text`
   font-size: 15px;
   font-weight: 700;
 `;
+
+export const ViewSpace = styled.View`
+  height: 12px;
+`;

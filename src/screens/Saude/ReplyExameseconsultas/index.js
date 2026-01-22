@@ -99,6 +99,8 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     setJustificativaDraft(String(data?.justificativa || ""));
   }, [data]);
 
+  const transporteData = data?.transporteData || null;
+
   const parecerInfo = useMemo(() => {
     const v = String(parecerDraft || data?.parecer || "analise").toLowerCase();
     return (
@@ -121,7 +123,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const auth = getAuth();
   const isAdmin =
     (auth.currentUser?.email || "").toLowerCase() ===
-    "brunovalu16@gmail.com".toLowerCase();
+    "admin@teste.com.br".toLowerCase();
 
   const hasChanges = !!(
     isAdmin &&
@@ -488,6 +490,74 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                     <Text style={{ color: theme.colors.textSecondary }}>—</Text>
                   )}
                 </OptionRow>
+
+                {transporteData ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "900",
+                        color: theme.colors.purple,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Transporte vinculado
+                    </Text>
+
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.background,
+                        padding: 12,
+                      }}
+                    >
+                      <Text
+                        style={{ color: theme.colors.text, fontWeight: "900" }}
+                      >
+                        {transporteData?.provider?.nome || "—"}
+                      </Text>
+
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          marginTop: 4,
+                        }}
+                      >
+                        {transporteData?.provider?.categoria || ""} •{" "}
+                        {transporteData?.provider?.km || ""}
+                      </Text>
+
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          marginTop: 8,
+                        }}
+                      >
+                        Origem: {transporteData?.fromAddress || "—"}
+                      </Text>
+
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          marginTop: 4,
+                        }}
+                      >
+                        Destino: {transporteData?.toAddress || "—"}
+                      </Text>
+
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          marginTop: 4,
+                        }}
+                      >
+                        Motivo: {transporteData?.reason || "—"}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
 
                 <DividerSpace />
 

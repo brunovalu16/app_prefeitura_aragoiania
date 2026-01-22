@@ -4,7 +4,7 @@ import { Alert, ScrollView, View } from "react-native";
 import HomeLastRequestCard from "../../components/HomeLastRequestCard";
 import { auth } from "../../services/firebase";
 
-const ADMIN_EMAIL = "brunovalu16@gmail.com";
+const ADMIN_EMAIL = "admin@teste.com.br";
 
 const AREAS = [
   { id: "iluminacao", label: "ILUMINAÇÃO PÚBLICA" },

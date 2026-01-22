@@ -84,7 +84,7 @@ export default function RecebeSaude({ navigation }) {
       console.log("📧 Auth Email:", email);
 
       setUid(nextUid);
-      setIsAdmin(email === "brunovalu16@gmail.com"); // ✅ admin pelo email
+      setIsAdmin(email === "admin@teste.com.br"); // ✅ admin pelo email
       setAuthLoading(false);
 
       if (!nextUid) navigation.replace("Login");

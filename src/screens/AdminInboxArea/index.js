@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../../services/firebase";
@@ -13,7 +8,7 @@ import { subscribeRequests } from "../../services/requests";
 import AdminUserCard from "../../components/AdminUserCard";
 import { Container } from "./styles";
 
-const ADMIN_EMAIL = "brunovalu16@gmail.com";
+const ADMIN_EMAIL = "admin@teste.com.br";
 
 export default function AdminUsersInbox({ navigation }) {
   const [requests, setRequests] = useState([]);
@@ -76,7 +71,7 @@ export default function AdminUsersInbox({ navigation }) {
 
     // ordena por email (ou por quantidade)
     return Object.values(map).sort((a, b) =>
-      (a.userEmail || "").localeCompare(b.userEmail || "")
+      (a.userEmail || "").localeCompare(b.userEmail || ""),
     );
   }, [requests]);
 

@@ -8,7 +8,7 @@ import { subscribeRequests } from "../../services/requests";
 import AdminUserCard from "../../components/AdminUserCard";
 import { Container } from "./styles";
 
-const ADMIN_EMAIL = "brunovalu16@gmail.com";
+const ADMIN_EMAIL = "admin@teste.com.br";
 
 export default function AdminUsersInbox({ navigation }) {
   const [requests, setRequests] = useState([]);

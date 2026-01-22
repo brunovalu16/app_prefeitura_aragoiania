@@ -11,7 +11,7 @@ import { subscribeRequests } from "../../services/requests";
 
 import { Container } from "./styles";
 
-const ADMIN_EMAIL = "brunovalu16@gmail.com";
+const ADMIN_EMAIL = "admin@teste.com.br";
 
 // ✅ mapa limpo de rotas por área (igual Recebesolicitacoes)
 const AREA_REPLY_ROUTE = {
@@ -46,8 +46,16 @@ export default function Home({ navigation }) {
   useEffect(() => {
     if (authLoading) return;
 
+    // ✅ admin NÃO busca solicitações na Home
+    if (isAdmin) {
+      setMyRequests([]);
+      return;
+    }
+
+    if (!uid) return;
+
     const unsub = subscribeRequests({
-      userId: isAdmin ? null : uid, // ✅ admin vê tudo
+      userId: uid,
       max: 200,
       onChange: (list) => setMyRequests(Array.isArray(list) ? list : []),
     });
@@ -121,35 +129,22 @@ export default function Home({ navigation }) {
         />
 
         {/* ✅ card mestre (accordion) por área */}
-        <View style={{ paddingHorizontal: 12, marginTop: -160 }}>
-          {/* ✅ título */}
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "600",
-              marginBottom: 12,
-              opacity: 0.85,
-              color: "#777777",
-              alignSelf: "center",
-            }}
-          >
-            Acesso rápido às suas solicitações
-          </Text>
-
-          {groupedByAreaQuick.length ? (
-            groupedByAreaQuick.map((group) => (
-              <AreaRequestsCard
-                key={group.areaId}
-                areaLabel={group.areaLabel}
-                requests={group.requests}
-                onPressRequest={(r) => navigateToReply(navigation, r)}
-                // onDeleteRequest={...} // opcional (na Home eu deixaria sem delete)
-              />
-            ))
-          ) : (
-            <Text style={{ opacity: 0.6 }} />
-          )}
-        </View>
+        {!isAdmin && (
+          <View style={{ paddingHorizontal: 12, marginTop: -160 }}>
+            {groupedByAreaQuick.length ? (
+              groupedByAreaQuick.map((group) => (
+                <AreaRequestsCard
+                  key={group.areaId}
+                  areaLabel={group.areaLabel}
+                  requests={group.requests}
+                  onPressRequest={(r) => navigateToReply(navigation, r)}
+                />
+              ))
+            ) : (
+              <Text style={{ opacity: 0.6 }} />
+            )}
+          </View>
+        )}
       </Container>
     </ScrollView>
   );

@@ -22,13 +22,13 @@ export const TopRow = styled.View`
 export const AvatarBtn = styled.TouchableOpacity`
   width: 100px;
   height: 100px;
-  border-radius: 5px;
+  border-radius: 10px;
 
   align-items: center;
   justify-content: center;
 
-  border-width: 1px;
-  border-color: ${({ theme }) => theme.colors.cinzaclaro};
+  border-width: 3px;
+  border-color: ${({ theme }) => theme.colors.cinza};
   background-color: ${({ theme }) => theme.colors.background};
   overflow: hidden;
 `;

@@ -81,7 +81,7 @@ export default function Replyiluminacao({ navigation, route }) {
 
   const isAdmin =
     (auth.currentUser?.email || "").toLowerCase() ===
-    "brunovalu16@gmail.com".toLowerCase();
+    "admin@teste.com.br".toLowerCase();
 
   //campo e notas
   useEffect(() => {

@@ -300,10 +300,21 @@ export function subscribeRequests({ userId, max = 200, onChange }) {
     );
   }
 
-  return onSnapshot(q, (snap) => {
-    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    onChange?.(list);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      onChange?.(list);
+    },
+    (err) => {
+      console.log(
+        "❌ subscribeRequests snapshot error:",
+        err?.code,
+        err?.message,
+      );
+      onChange?.([]); // evita ficar travado
+    },
+  );
 }
 
 /**
@@ -433,4 +444,25 @@ export function subscribeRequestsByArea({ areaId, onChange }) {
       onChange?.([]);
     },
   );
+}
+
+//função da parte de transporte
+
+// ✅ salva transporte dentro da solicitação selecionada
+export async function updateRequestTransport({ requestId, transporteData }) {
+  if (!requestId)
+    throw new Error("updateRequestTransport: requestId obrigatório");
+  if (!transporteData || typeof transporteData !== "object")
+    throw new Error("updateRequestTransport: transporteData obrigatório");
+
+  const refDoc = doc(db, "requests", requestId);
+
+  await updateDoc(refDoc, {
+    transporteData: {
+      ...transporteData,
+      updatedAt: serverTimestamp(),
+    },
+  });
+
+  return { ok: true };
 }

@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 
+import AdminUserCard from "../../components/AdminUserCard";
+
 import { onAuthStateChanged } from "firebase/auth";
 import AreaRequestsCard from "../../components/AreaRequestsCard";
 import { auth } from "../../services/firebase";
@@ -63,12 +65,12 @@ function navigateToReply(navigation, request) {
   navigation.navigate(route, { requestId: request?.id });
 }
 
-//Pagina Recebeiluminacao
-
 export default function Recebesolicitacoes({ navigation }) {
   const [requests, setRequests] = useState([]);
   const [uid, setUid] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false); // ✅ ADD
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const [openUserId, setOpenUserId] = useState(null);
 
   // ✅ loading states
   const [authLoading, setAuthLoading] = useState(true);
@@ -80,11 +82,8 @@ export default function Recebesolicitacoes({ navigation }) {
       const nextUid = user?.uid || null;
       const email = (user?.email || "").toLowerCase();
 
-      console.log("🔑 Auth UID:", nextUid);
-      console.log("📧 Auth Email:", email);
-
       setUid(nextUid);
-      setIsAdmin(email === "brunovalu16@gmail.com"); // ✅ admin pelo email
+      setIsAdmin(email === "admin@teste.com.br");
       setAuthLoading(false);
 
       if (!nextUid) navigation.replace("Login");
@@ -100,7 +99,7 @@ export default function Recebesolicitacoes({ navigation }) {
     setDataLoading(true);
 
     const unsub = subscribeRequests({
-      userId: isAdmin ? null : uid, // ✅ admin: sem filtro de userId
+      userId: isAdmin ? undefined : uid, // ✅ admin: sem filtro de userId
       max: 200,
       onChange: (list) => {
         setRequests(Array.isArray(list) ? list : []);
@@ -109,14 +108,25 @@ export default function Recebesolicitacoes({ navigation }) {
     });
 
     return () => unsub?.();
-  }, [uid, isAdmin]); // ✅ ADD isAdmin
+  }, [uid, isAdmin]);
 
-  // ✅ agrupa solicitações por área
+  // ✅ sanitiza/filtra visibilidade (segurança extra)
+  const visibleRequests = useMemo(() => {
+    const all = Array.isArray(requests) ? requests : [];
+
+    // ✅ REGRA: concluídas/ocultas não aparecem pra ninguém (inclusive admin)
+    const notHidden = all.filter((r) => r?.isHidden !== true);
+
+    // ✅ usuário normal: só as dele
+    if (!isAdmin) return notHidden.filter((r) => r?.userId === uid);
+
+    // ✅ admin: todas (não ocultas), de todos os usuários
+    return notHidden;
+  }, [requests, isAdmin, uid]);
+
+  // ✅ usuário normal: agrupa por área (como você já tinha)
   const groupedByArea = useMemo(() => {
     const map = {};
-
-    // ✅ usuário não vê concluída
-    const visibleRequests = (requests || []).filter((r) => !r?.isHidden);
 
     visibleRequests.forEach((r) => {
       const areaId = r?.areaId || "sem_area";
@@ -145,9 +155,63 @@ export default function Recebesolicitacoes({ navigation }) {
     });
 
     return arr;
-  }, [requests]);
+  }, [visibleRequests]);
+
+  // ✅ admin: agrupa por USUÁRIO -> ÁREA -> solicitações (volta o comportamento antigo)
+  const groupedByUserThenArea = useMemo(() => {
+    const usersMap = {};
+
+    visibleRequests.forEach((r) => {
+      const userKey = r?.userId || "sem_user";
+      const userEmail =
+        r?.userEmail || r?.email || r?.ownerEmail || "Sem email";
+
+      if (!usersMap[userKey]) {
+        usersMap[userKey] = {
+          userId: userKey,
+          email: String(userEmail),
+          areasMap: {},
+        };
+      }
+
+      const areaId = r?.areaId || "sem_area";
+      if (!usersMap[userKey].areasMap[areaId]) {
+        usersMap[userKey].areasMap[areaId] = {
+          areaId,
+          areaLabel: r?.areaLabel || String(areaId).toUpperCase(),
+          requests: [],
+        };
+      }
+
+      usersMap[userKey].areasMap[areaId].requests.push(r);
+    });
+
+    const usersArr = Object.values(usersMap)
+      .map((u) => {
+        const areasArr = Object.values(u.areasMap).sort((a, b) =>
+          (a.areaLabel || "").localeCompare(b.areaLabel || ""),
+        );
+
+        areasArr.forEach((g) => {
+          g.requests.sort((a, b) => {
+            const ta = a?.createdAt?.toMillis?.() ?? 0;
+            const tb = b?.createdAt?.toMillis?.() ?? 0;
+            return tb - ta;
+          });
+        });
+
+        return { userId: u.userId, email: u.email, areas: areasArr };
+      })
+      .sort((a, b) => (a.email || "").localeCompare(b.email || ""));
+
+    return usersArr;
+  }, [visibleRequests]);
 
   const showLoading = authLoading || (!!uid && dataLoading);
+
+  function toggleUser(userId) {
+    setOpenUserId((prev) => (prev === userId ? null : userId));
+  }
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -170,7 +234,7 @@ export default function Recebesolicitacoes({ navigation }) {
               <View
                 style={{
                   flex: 1,
-                  minHeight: 300,
+                  minHeight: 500,
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 10,
@@ -179,14 +243,69 @@ export default function Recebesolicitacoes({ navigation }) {
                 <ActivityIndicator size="large" />
                 <Text style={{ opacity: 0.7 }}>Carregando solicitações...</Text>
               </View>
+            ) : isAdmin ? (
+              groupedByUserThenArea.map((userGroup) => {
+                const isOpen = openUserId === userGroup.userId;
+
+                return (
+                  <View key={userGroup.userId} style={{ marginBottom: 12 }}>
+                    {/* ✅ Header fechado (email roxo já vem no Title do AdminUserCard) */}
+                    <AdminUserCard
+                      userEmail={userGroup.email}
+                      count={userGroup.areas.reduce(
+                        (acc, a) => acc + (a?.requests?.length || 0),
+                        0,
+                      )}
+                      onPress={() => toggleUser(userGroup.userId)}
+                    />
+
+                    {/* ✅ Corpo com rolagem vertical (quando abre) */}
+                    {isOpen && (
+                      <View
+                        style={{
+                          marginTop: 8,
+                          backgroundColor: "#fff",
+                          borderRadius: 16,
+                          padding: 10,
+                          borderWidth: 1,
+                          borderColor: "rgba(0,0,0,0.06)",
+                        }}
+                      >
+                        <ScrollView
+                          style={{ maxHeight: 380 }} // ✅ rolagem vertical do “conteúdo do usuário”
+                          contentContainerStyle={{ paddingBottom: 10 }}
+                          showsVerticalScrollIndicator={false}
+                          nestedScrollEnabled
+                        >
+                          {userGroup.areas.map((areaGroup) => (
+                            <AreaRequestsCard
+                              key={`${userGroup.userId}-${areaGroup.areaId}`}
+                              areaLabel={areaGroup.areaLabel}
+                              requests={areaGroup.requests}
+                              onPressRequest={(r) =>
+                                navigateToReply(navigation, r)
+                              }
+                              onDeleteRequest={handleDeleteRequest}
+                              defaultOpen={false} // ✅ áreas começam fechadas
+                              minListHeight={160}
+                              maxListHeight={320}
+                            />
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
             ) : (
+              // ✅ USER VIEW: áreas -> solicitações
               groupedByArea.map((group) => (
                 <AreaRequestsCard
                   key={group.areaId}
                   areaLabel={group.areaLabel}
                   requests={group.requests}
                   onPressRequest={(r) => navigateToReply(navigation, r)}
-                  onDeleteRequest={handleDeleteRequest} // ✅ ADD
+                  onDeleteRequest={handleDeleteRequest}
                 />
               ))
             )}
