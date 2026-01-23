@@ -1,40 +1,52 @@
-
 import { ImageBackground } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { styled } from "styled-components/native";
 
-
-export const Container = styled(SafeAreaView)`
+export const Container = styled(SafeAreaView).attrs({
+  edges: ["top"], // não reserva embaixo
+})`
   flex: 1;
   background: ${({ theme }) => theme.colors.purple};
   padding: 28px;
-  padding-top: 260px;
+
+  /* ✅ quando abre teclado, sobe o conteúdo */
+  padding-top: ${({ $kb }) => ($kb ? 170 : 260)}px;
+
+  /* ✅ empurra pra cima sem “quebrar” a altura da tela */
+  padding-bottom: ${({ $kbH }) => ($kbH ? $kbH : 0)}px;
 `;
 
+export const RowLogin = styled.View`
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 15px;
+  margin-top: ${({ $kb }) => ($kb ? "26%" : "69%")};
+`;
 
 export const LogoImage = styled.Image.attrs({
   resizeMode: "contain",
 })`
-  width: 240px;
-  padding-top: 140%
+  width: 230px;
+  padding-top: 145%;
 `;
 
 export const LogoArea = styled(ImageBackground).attrs({
   resizeMode: "cover",
   imageStyle: {
     opacity: 1,
-    top: 100,
+    top: 160,
     transform: [{ scale: 1 }],
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
   },
 })`
   position: absolute;
-  top: -190;
+  top: -170;
   left: 0;
   right: 0;
 
-  height: 140%;
+  height: 120%;
   align-items: center;
 
   background-color: ${({ theme }) => theme.colors.black};
@@ -45,8 +57,6 @@ export const LogoArea = styled(ImageBackground).attrs({
 
   padding-top: 40px;
 `;
-
-
 
 export const LogoText = styled.Text`
   color: #fff;
@@ -77,14 +87,6 @@ export const InputLine = styled.TextInput`
   padding-bottom: 6px;
 `;
 
-export const RowLogin = styled.View`
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 18px;
-  margin-top: 68%;
-`;
-
 export const RowLoginText = styled.Text`
   color: ${({ theme }) => theme.colors.surface};
   opacity: 0.9;
@@ -94,7 +96,6 @@ export const RowLoginText = styled.Text`
 export const RowLoginDivider = styled.Text`
   color: ${({ theme }) => theme.colors.surface};
   opacity: 0.6;
-  margin: 0 10px;
   font-size: ${({ theme }) => theme.font.xl}px;
 `;
 

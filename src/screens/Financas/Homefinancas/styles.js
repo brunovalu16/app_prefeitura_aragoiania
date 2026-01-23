@@ -85,3 +85,10 @@ export const TileIconIcon = styled(Ionicons).attrs({
 })`
   color: ${({ theme }) => theme.colors.purple};
 `;
+
+export const SectionTitle = styled.Text`
+  font-size: 14px;
+  font-weight: 800;
+  color: ${({ theme }) => theme.colors.cinza};
+  margin: 10px 0 10px 2px;
+`;
