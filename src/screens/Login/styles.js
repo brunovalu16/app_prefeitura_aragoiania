@@ -21,7 +21,7 @@ export const RowLogin = styled.View`
   justify-content: center;
   align-items: center;
   margin-bottom: 15px;
-  margin-top: ${({ $kb }) => ($kb ? "26%" : "69%")};
+  margin-top: ${({ $kb }) => ($kb ? "26%" : "70%")};
 `;
 
 export const LogoImage = styled.Image.attrs({
