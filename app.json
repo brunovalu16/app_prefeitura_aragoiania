@@ -12,8 +12,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "br.gov.aragoiania.app",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "googleMapsApiKey": "${GOOGLE_MAPS_IOS_KEY}",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para registrar a solicitação."
       }
     },
     "android": {
@@ -27,7 +29,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "${GOOGLE_MAPS_ANDROID_KEY}"
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -53,7 +60,8 @@
     "extra": {
       "eas": {
         "projectId": "244e06c9-9e57-4df8-a451-cbb43b160411"
-      }
+      },
+      "EXPO_PUBLIC_GOOGLE_PLACES_KEY": "${EXPO_PUBLIC_GOOGLE_PLACES_KEY}"
     }
   }
 }

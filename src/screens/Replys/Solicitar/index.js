@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    TouchableWithoutFeedback,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useTheme } from "styled-components/native";
 
@@ -24,27 +24,27 @@ import { getAuthUserId } from "../../../services/userId";
 import AppAlert from "../../../components/AppAlert";
 
 import {
-    ActionRow,
-    AddressInput,
-    // ✅ NOVOS
-    AddressRow,
-    AreaTitle,
-    Card,
-    Container,
-    CounterRow,
-    CounterText,
-    DescriptionInput,
-    FieldLabel,
-    Helper,
-    PostNumberInput,
-    PreviewGrid,
-    PreviewImage,
-    PreviewItem,
-    RemoveBadge,
-    RemoveBadgeText,
-    Row,
-    SmallAction,
-    SmallActionText,
+  ActionRow,
+  AddressInput,
+  // ✅ NOVOS
+  AddressRow,
+  AreaTitle,
+  Card,
+  Container,
+  CounterRow,
+  CounterText,
+  DescriptionInput,
+  FieldLabel,
+  Helper,
+  PostNumberInput,
+  PreviewGrid,
+  PreviewImage,
+  PreviewItem,
+  RemoveBadge,
+  RemoveBadgeText,
+  Row,
+  SmallAction,
+  SmallActionText,
 } from "./styles";
 
 export default function Solicitar({ navigation }) {
@@ -180,9 +180,9 @@ export default function Solicitar({ navigation }) {
     setModal(true);
   }
 
-  function handleSelectLocation(coords) {
-    // coords: { latitude, longitude }
-    setLocation(coords);
+  function handleSelectLocation(data) {
+    // data: { latitude, longitude, address }
+    setLocation(data);
     setModal(false);
   }
 
@@ -336,9 +336,11 @@ export default function Solicitar({ navigation }) {
 
               <PrimaryButtonlocalizacao
                 title={
-                  location
-                    ? `LOCAL OK (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`
-                    : "USAR LOCALIZAÇÃO ATUAL"
+                  location?.address?.trim()
+                    ? location.address
+                    : location?.latitude
+                      ? `LOCAL OK (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`
+                      : "USAR LOCALIZAÇÃO ATUAL"
                 }
                 onPress={handleOpenMap}
                 style={{ marginTop: 12 }}
