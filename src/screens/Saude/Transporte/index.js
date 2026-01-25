@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   ScrollView,
   Text,
   TextInput,
@@ -20,26 +19,15 @@ import {
   CardTitle,
   CardTop,
   CardTopRight,
-  CepText,
   Container,
-  DistanceRow,
-  DistanceText,
   DividerLine,
   FavCol,
-  FavHeart,
   FavLabel,
   IconsRow,
   LocationBar,
   LocationBarLeft,
   LocationBarText,
   LocationBarX,
-  PageBtn,
-  PageNumberBox,
-  PageNumberText,
-  Pagination,
-  PhoneLink,
-  PhonesCol,
-  PhoneText,
   RowBetween,
   SaveButton,
   SaveButtonText,
@@ -75,38 +63,41 @@ function formatCreatedAt(createdAt) {
 export default function Transporte({ navigation }) {
   const theme = useTheme();
 
-  // ✅ cards (fictício por enquanto)
-  const items = useMemo(
+  // ✅ opções de veículos (accordion)
+  const vehicleOptions = useMemo(
     () => [
-      {
-        id: "1",
-        categoria: "Remoção",
-        nome: "Anjos da Saude Uti Movel",
-        endereco: "R Araxa, 0 - Cardoso, Aparecida de Goiania/ GO",
-        cep: "CEP 74933 115",
-        phones: ["62 3582 7187", "62 3921 3200"],
-        km: "7,808 km",
-      },
-      {
-        id: "2",
-        categoria: "Remoção",
-        nome: "Flashmed Uti Movel",
-        endereco: "R C 32, 184 - Jardim America, Goiania/ GO",
-        cep: "CEP 74265 220",
-        phones: ["62 3093 3100"],
-        km: "10,775 km",
-      },
-      {
-        id: "3",
-        categoria: "Remoção",
-        nome: "Lideranca Uti Movel",
-        endereco:
-          "R Sr 1, 308 - Residencial Santa Rita - 4a Etapa, Aparecida de Goiania/ GO",
-        cep: "CEP 74370 764",
-        phones: ["62 3921 3200", "62 98108 2000"],
-        km: "12,350 km",
-      },
+      { id: "ambulancia", label: "Ambulância" },
+      { id: "pequeno", label: "Veículo pequeno" },
+      { id: "pcd", label: "Veículo para deficiente físico" },
+      { id: "van", label: "Van" },
     ],
+    [],
+  );
+
+  // ✅ dados fictícios por tipo de veículo (motorista + infos)
+  const vehicleMockData = useMemo(
+    () => ({
+      ambulancia: {
+        vehicleName: "Ambulância Municipal 01",
+        driverName: "Carlos Henrique",
+        plate: "QWE-1A23",
+      },
+      pequeno: {
+        vehicleName: "Veículo Pequeno 02",
+        driverName: "João Pedro",
+        plate: "ABC-4D56",
+      },
+      pcd: {
+        vehicleName: "PCD Adaptado 01",
+        driverName: "Mariana Souza",
+        plate: "PCD-7F89",
+      },
+      van: {
+        vehicleName: "Van Municipal 03",
+        driverName: "Rafael Lima",
+        plate: "VAN-0H12",
+      },
+    }),
     [],
   );
 
@@ -125,14 +116,14 @@ export default function Transporte({ navigation }) {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
 
-  // ✅ seleção do card
-  const [selectedTransportId, setSelectedTransportId] = useState(null);
+  // ✅ accordion do veículo
+  const [vehicleAccordionOpen, setVehicleAccordionOpen] = useState(false);
 
-  // paginação simples (mock)
-  const PAGE_SIZE = 2;
-  const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const pageItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // ✅ veículo selecionado
+  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+  const selectedVehicleInfo = selectedVehicleId
+    ? vehicleMockData[selectedVehicleId]
+    : null;
 
   useEffect(() => {
     const uid = getAuthUserId();
@@ -198,14 +189,6 @@ export default function Transporte({ navigation }) {
     return () => unsub?.();
   }, [userId, selectedRequestId]);
 
-  function callPhone(phone) {
-    const digits = String(phone).replace(/\D/g, "");
-    if (!digits) return;
-    Linking.openURL(`tel:${digits}`).catch(() =>
-      Alert.alert("Ops", "Não foi possível abrir o discador."),
-    );
-  }
-
   async function handleSave() {
     try {
       if (!userId) {
@@ -218,8 +201,8 @@ export default function Transporte({ navigation }) {
         return;
       }
 
-      if (!selectedTransportId) {
-        Alert.alert("Atenção", "Selecione um transporte (card).");
+      if (!selectedVehicleId) {
+        Alert.alert("Atenção", "Selecione um tipo de veículo.");
         return;
       }
 
@@ -233,9 +216,9 @@ export default function Transporte({ navigation }) {
         return;
       }
 
-      const provider = items.find((x) => x.id === selectedTransportId);
-      if (!provider) {
-        Alert.alert("Erro", "Transporte selecionado inválido.");
+      const info = vehicleMockData[selectedVehicleId];
+      if (!info) {
+        Alert.alert("Erro", "Veículo selecionado inválido.");
         return;
       }
 
@@ -244,13 +227,14 @@ export default function Transporte({ navigation }) {
         toAddress: String(toAddress || "").trim(),
         reason: String(reason || "").trim(),
         provider: {
-          id: provider.id,
-          categoria: provider.categoria,
-          nome: provider.nome,
-          endereco: provider.endereco,
-          cep: provider.cep,
-          phones: provider.phones,
-          km: provider.km,
+          id: selectedVehicleId,
+          tipo: selectedVehicleId,
+          label:
+            vehicleOptions.find((v) => v.id === selectedVehicleId)?.label ||
+            "Veículo",
+          veiculo: info.vehicleName,
+          motorista: info.driverName,
+          placa: info.plate,
         },
         createdAtMs: Date.now(),
       };
@@ -524,11 +508,7 @@ export default function Transporte({ navigation }) {
                       <Ionicons
                         name={selected ? "checkmark-circle" : "ellipse-outline"}
                         size={20}
-                        color={
-                          selected
-                            ? theme.colors.cinzaclaro
-                            : theme.colors.cinzaclaro
-                        }
+                        color={theme.colors.cinzaclaro}
                       />
                     </TouchableOpacity>
                   );
@@ -538,168 +518,185 @@ export default function Transporte({ navigation }) {
           ) : null}
         </View>
 
-        {/* Lista de cards (selecionável) */}
-        {/* ✅ Texto antes dos cards */}
-        <Text
-          style={{
-            color: theme.colors.cinza,
-            fontWeight: "800",
-            marginTop: 6,
-            marginBottom: 10,
-            alignSelf: "center",
-          }}
-        >
-          Escolha o transporte mais próximo do seu endereço.
-        </Text>
-
-        {/* Lista de cards (clicável no card inteiro) */}
-        {pageItems.map((it) => {
-          const active = selectedTransportId === it.id;
-
-          return (
-            <TouchableOpacity
-              key={it.id}
-              activeOpacity={0.9}
-              onPress={() =>
-                setSelectedTransportId((prev) =>
-                  prev === it.id ? null : it.id,
-                )
-              } // ✅ também permite desmarcar o card
-              style={{ marginBottom: 12 }}
+        {/* ✅ Accordion - Qual veículo? */}
+        <View style={{ marginTop: 12, marginBottom: 12 }}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setVehicleAccordionOpen((v) => !v)}
+            style={{
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              borderRadius: 12,
+              padding: 12,
+              backgroundColor: theme.colors.card || theme.colors.purple,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
             >
-              <Card
-                style={{
-                  borderWidth: active ? 2 : 0,
-                  borderColor: active ? theme.colors.purple : "transparent",
-                }}
-              >
-                <CardTop>
-                  <SubtitleText>{it.categoria}</SubtitleText>
+              <Ionicons
+                name="car-outline"
+                size={18}
+                color={theme.colors.surface}
+              />
 
-                  <CardTopRight>
-                    <FavCol>
-                      {/* ✅ Ícone continua funcionando, mas agora é opcional */}
-                      <FavHeart
-                        onPress={() =>
-                          setSelectedTransportId((prev) =>
-                            prev === it.id ? null : it.id,
-                          )
-                        }
-                      >
-                        <Ionicons
-                          name={active ? "checkmark-circle" : "ellipse-outline"}
-                          size={18}
-                          color={
-                            active ? theme.colors.purple : theme.colors.text
-                          }
-                        />
-                      </FavHeart>
-                      <FavLabel>
-                        {active ? "Selecionado" : "Selecionar"}
-                      </FavLabel>
-                    </FavCol>
-                  </CardTopRight>
-                </CardTop>
+              <Text style={{ color: theme.colors.surface, fontWeight: "900" }}>
+                Qual veículo você precisa?
+              </Text>
+            </View>
 
-                <CardHeader>
-                  <CardHeaderLeft>
-                    <CardTitle
-                      numberOfLines={1}
-                      style={{ color: theme.colors.purple }}
+            <Ionicons
+              name={vehicleAccordionOpen ? "chevron-up" : "chevron-down"}
+              size={18}
+              color={theme.colors.surface}
+            />
+          </TouchableOpacity>
+
+          {vehicleAccordionOpen ? (
+            <View
+              style={{
+                marginTop: 10,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                borderRadius: 12,
+                overflow: "hidden",
+                backgroundColor: theme.colors.purpleclaro,
+              }}
+            >
+              {vehicleOptions.map((opt) => {
+                const selected = selectedVehicleId === opt.id;
+
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    activeOpacity={0.9}
+                    onPress={() =>
+                      setSelectedVehicleId((prev) =>
+                        prev === opt.id ? null : opt.id,
+                      )
+                    }
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 12,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.colors.border,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      backgroundColor: selected
+                        ? theme.colors.purple + "12"
+                        : "transparent",
+                    }}
+                  >
+                    <Text
+                      style={{ color: theme.colors.surface, fontWeight: "900" }}
                     >
-                      {it.nome}
-                    </CardTitle>
+                      {opt.label}
+                    </Text>
 
-                    <IconsRow>
-                      <Ionicons
-                        name="medical-outline"
-                        size={18}
-                        color={theme.colors.purple}
-                      />
-                      <Ionicons
-                        name="car-outline"
-                        size={18}
-                        color={theme.colors.purple}
-                      />
-                      <Ionicons
-                        name="location-outline"
-                        size={18}
-                        color={theme.colors.purple}
-                      />
-                    </IconsRow>
-                  </CardHeaderLeft>
-                </CardHeader>
+                    <Ionicons
+                      name={selected ? "checkmark-circle" : "ellipse-outline"}
+                      size={20}
+                      color={theme.colors.cinzaclaro}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
+        </View>
 
-                <DividerLine />
+        {/* ✅ Card aparece após escolher veículo */}
+        {selectedVehicleInfo ? (
+          <View style={{ marginTop: 4, marginBottom: 12 }}>
+            <Card
+              style={{
+                borderWidth: 2,
+                borderColor: theme.colors.purple,
+              }}
+            >
+              <CardTop>
+                <SubtitleText>Veículo selecionado</SubtitleText>
 
-                <CardBody>
-                  <RowBetween>
-                    <PhonesCol>
-                      <SubtitleText style={{ marginBottom: 6 }}>
-                        {it.endereco}
-                      </SubtitleText>
+                <CardTopRight>
+                  <FavCol>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color={theme.colors.purple}
+                    />
+                    <FavLabel>Confirmado</FavLabel>
+                  </FavCol>
+                </CardTopRight>
+              </CardTop>
 
-                      <CepText>{it.cep}</CepText>
+              <CardHeader>
+                <CardHeaderLeft>
+                  <CardTitle
+                    numberOfLines={1}
+                    style={{ color: theme.colors.purple }}
+                  >
+                    {selectedVehicleInfo.vehicleName}
+                  </CardTitle>
 
-                      <ViewSpace />
+                  <IconsRow>
+                    <Ionicons
+                      name="person-outline"
+                      size={18}
+                      color={theme.colors.purple}
+                    />
+                    <Ionicons
+                      name="car-outline"
+                      size={18}
+                      color={theme.colors.purple}
+                    />
+                  </IconsRow>
+                </CardHeaderLeft>
+              </CardHeader>
 
-                      {it.phones.map((p) => (
-                        <PhoneLink
-                          key={p}
-                          onPress={() => callPhone(p)}
-                          // ✅ impede o clique do telefone de "marcar/desmarcar" o card
-                          onPressIn={(e) => e.stopPropagation?.()}
-                        >
-                          <PhoneText>{p}</PhoneText>
-                        </PhoneLink>
-                      ))}
-                    </PhonesCol>
+              <DividerLine />
 
-                    <DistanceRow>
-                      <Ionicons
-                        name="location"
-                        size={16}
-                        color={theme.colors.purple}
-                      />
-                      <DistanceText>{it.km}</DistanceText>
-                    </DistanceRow>
-                  </RowBetween>
-                </CardBody>
-              </Card>
-            </TouchableOpacity>
-          );
-        })}
+              <CardBody>
+                <RowBetween>
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text
+                      style={{ color: theme.colors.text, fontWeight: "800" }}
+                    >
+                      Motorista:{" "}
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          fontWeight: "700",
+                        }}
+                      >
+                        {selectedVehicleInfo.driverName}
+                      </Text>
+                    </Text>
 
-        {/* Paginação */}
-        <Pagination>
-          <PageBtn
-            onPress={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={18}
-              color={theme.colors.purple}
-            />
-          </PageBtn>
+                    <ViewSpace />
 
-          <PageNumberBox>
-            <PageNumberText>
-              {page} / {totalPages}
-            </PageNumberText>
-          </PageNumberBox>
-
-          <PageBtn
-            onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={theme.colors.purple}
-            />
-          </PageBtn>
-        </Pagination>
+                    <Text
+                      style={{ color: theme.colors.text, fontWeight: "800" }}
+                    >
+                      Placa:{" "}
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          fontWeight: "700",
+                        }}
+                      >
+                        {selectedVehicleInfo.plate}
+                      </Text>
+                    </Text>
+                  </View>
+                </RowBetween>
+              </CardBody>
+            </Card>
+          </View>
+        ) : null}
 
         {/* ✅ Botão Salvar */}
         <SaveButton onPress={handleSave}>

@@ -18,6 +18,9 @@ import {
   updateRequestStatus,
 } from "../../../services/requests";
 
+import { getAdminScopeByEmail } from "../../../services/adminScope"; // ✅ ADD
+import { getAuthUserId } from "../../../services/userId"; // ✅ ADD (fallback)
+
 import {
   BackBtn,
   Body,
@@ -49,7 +52,6 @@ function parseDescricao(descricaoRaw) {
     const k = line.slice(0, idx).trim().toLowerCase();
     const v = line.slice(idx + 1).trim();
 
-    // guarda o ÚLTIMO valor (se repetiu “Médico:” duas vezes, fica o último)
     if (k && v) map[k] = v;
   }
 
@@ -73,28 +75,40 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
   const [statusDraft, setStatusDraft] = useState(null);
 
-  //=========================================================================
+  // =========================================================================
 
   const [parecerOpen, setParecerOpen] = useState(false);
-  const [parecerDraft, setParecerDraft] = useState(null); // "liberado" | "pendente" | "recusado"
+  const [parecerDraft, setParecerDraft] = useState(null); // analise|pendente|recusado|liberado|concluido
   const [justificativaDraft, setJustificativaDraft] = useState("");
 
   const parecerOptions = useMemo(
     () => [
-      { value: "analise", label: "ANÁLISE", color: "#ebb105" }, // amarelo
-      { value: "pendente", label: "PENDENTE", color: "#EB5757" }, // vermelho
-      { value: "recusado", label: "RECUSADO", color: "#B00020" }, // vermelho escuro
-      { value: "liberado", label: "LIBERADO", color: "#27AE60" }, // verde
-
+      { value: "analise", label: "ANÁLISE", color: "#ebb105" },
+      { value: "pendente", label: "PENDENTE", color: "#EB5757" },
+      { value: "recusado", label: "RECUSADO", color: "#B00020" },
+      { value: "liberado", label: "LIBERADO", color: "#27AE60" },
       { value: "concluido", label: "CONCLUÍDO" },
     ],
     [],
   );
 
+  // ✅ auth/admin (agora suporta adminsaude@..., adminiluminacao@..., etc)
+  const auth = getAuth();
+  const userEmail = (auth.currentUser?.email || "").toLowerCase();
+  const adminScope = getAdminScopeByEmail(userEmail);
+  const isAdmin = !!adminScope;
+
+  // ✅ (RECOMENDADO) garante que só admin de SAÚDE edite essa tela
+  const canEditThisArea = useMemo(() => {
+    const areaIds = adminScope?.areaIds || [];
+    return areaIds.includes("saude"); // se seu id for outro, ajusta aqui
+  }, [adminScope]);
+
+  const canAdminEdit = isAdmin && canEditThisArea;
+
   useEffect(() => {
     if (!data) return;
 
-    // ✅ padrão correto: analise
     setParecerDraft(String(data?.parecer || "analise").toLowerCase());
     setJustificativaDraft(String(data?.justificativa || ""));
   }, [data]);
@@ -114,32 +128,26 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
   const bolinhaColor = parecerInfo.color;
 
-  //=========================================================================
+  // =========================================================================
 
-  const statusOptions = parecerOptions; // ✅ status = parecer (mesmas opções)
-
+  const statusOptions = parecerOptions; // status = parecer
   const [saving, setSaving] = useState(false);
 
-  const auth = getAuth();
-  const isAdmin =
-    (auth.currentUser?.email || "").toLowerCase() ===
-    "admin@teste.com.br".toLowerCase();
-
   const hasChanges = !!(
-    isAdmin &&
+    canAdminEdit &&
     ((statusDraft &&
       statusDraft !== String(data?.status || "").toLowerCase()) ||
       (parecerDraft &&
-        parecerDraft !== String(data?.parecer || "pendente").toLowerCase()) ||
+        parecerDraft !== String(data?.parecer || "analise").toLowerCase()) ||
       String(justificativaDraft || "") !== String(data?.justificativa || ""))
   );
 
   useEffect(() => {
-    // ✅ status acompanha parecer, EXCETO quando for "concluido"
+    // status acompanha parecer, exceto "concluido"
     if (!parecerDraft) return;
 
     const p = String(parecerDraft).toLowerCase();
-    if (p === "concluido") return; // ❌ não sincroniza
+    if (p === "concluido") return;
 
     setStatusDraft(p);
   }, [parecerDraft]);
@@ -147,24 +155,34 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   async function handleSaveAll() {
     try {
       if (!requestId) return;
-      if (!isAdmin) return;
+
+      if (!canAdminEdit) {
+        return Alert.alert(
+          "Acesso negado",
+          "Somente o admin responsável pela área de SAÚDE pode salvar aqui.",
+        );
+      }
 
       setSaving(true);
 
       const parecerLower = String(parecerDraft || "").toLowerCase();
       const isConcluido = parecerLower === "concluido";
 
+      const userId = auth.currentUser?.uid || (await getAuthUserId());
+
       await updateRequestStatus({
         requestId,
-        userId: auth.currentUser?.uid,
+        userId,
 
-        parecer: parecerDraft,
+        parecer: parecerLower,
         justificativa: justificativaDraft,
 
-        // ✅ só atualiza status quando NÃO for "concluido"
-        status: isConcluido ? null : statusDraft,
+        // só atualiza status quando NÃO for "concluido"
+        status: isConcluido
+          ? null
+          : String(statusDraft || "analise").toLowerCase(),
 
-        // ✅ some do app quando "concluido"
+        // concluiu = some do app
         isHidden: isConcluido,
       });
 
@@ -177,7 +195,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     }
   }
 
-  // quando carregar do banco, sincroniza o draft
   useEffect(() => {
     if (!data?.status) return;
     setStatusDraft(String(data.status).toLowerCase());
@@ -210,12 +227,10 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
   const saudeData = data?.saudeData || null;
 
-  // ✅ agendamento estruturado
   const medicoAgendado = saudeData?.medicoAgendado || "";
   const dataAgendada = saudeData?.dataAgendada || "";
   const horaAgendada = saudeData?.horaAgendada || "";
 
-  // ✅ FALLBACKS (saudeData -> descricao)
   const medicoSelecionado = saudeData?.medicoSelecionado || parsed.medico || "";
   const clinicaSelecionada =
     saudeData?.clinicaSelecionada || parsed.clinica || "";
@@ -258,7 +273,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
       return `${String(medicoAgendado).split(" (")[0]} • ${dataAgendada} ${horaAgendada}`;
     }
 
-    // se não tem agendamento estruturado, tenta usar data/horário parseados
     if (medicoSelecionado && parsed.data && parsed.horario) {
       return `${String(medicoSelecionado).split(" (")[0]} • ${parsed.data} ${parsed.horario}`;
     }
@@ -276,7 +290,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
   return (
     <Container>
-      {/* ✅ HEADER bonito */}
       <Header style={{ overflow: "hidden" }}>
         <LinearGradient
           colors={[
@@ -354,11 +367,9 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         backgroundColor: draftInfo.color + "22",
                         borderWidth: 1,
                         borderColor: draftInfo.color,
-
-                        // ✅ deixa caber "PENDENTE", "EM ANÁLISE", "AGUARDANDO" inteiro
                         maxWidth: 180,
                         minWidth: 120,
-                        flexShrink: 0, // ✅ não deixa encolher e cortar
+                        flexShrink: 0,
                       }}
                     >
                       <SelectedPillText
@@ -506,64 +517,151 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
                     <View
                       style={{
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                        borderRadius: 12,
-                        backgroundColor: theme.colors.background,
+                        borderWidth: 2,
+                        borderColor: theme.colors.purple,
+                        borderRadius: 14,
+                        backgroundColor:
+                          theme.colors.card || theme.colors.background,
                         padding: 12,
                       }}
                     >
-                      <Text
-                        style={{ color: theme.colors.text, fontWeight: "900" }}
-                      >
-                        {transporteData?.provider?.nome || "—"}
-                      </Text>
-
-                      <Text
+                      <View
                         style={{
-                          color: theme.colors.textSecondary,
-                          marginTop: 4,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: 8,
                         }}
                       >
-                        {transporteData?.provider?.categoria || ""} •{" "}
-                        {transporteData?.provider?.km || ""}
-                      </Text>
+                        <Text
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: "700",
+                          }}
+                        >
+                          Veículo selecionado
+                        </Text>
+
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={18}
+                            color={theme.colors.purple}
+                          />
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: "700",
+                            }}
+                          >
+                            Confirmado
+                          </Text>
+                        </View>
+                      </View>
 
                       <Text
+                        numberOfLines={1}
                         style={{
-                          color: theme.colors.textSecondary,
-                          marginTop: 8,
+                          color: theme.colors.purple,
+                          fontSize: 16,
+                          fontWeight: "900",
+                          marginBottom: 8,
                         }}
                       >
-                        Origem: {transporteData?.fromAddress || "—"}
+                        {transporteData?.provider?.veiculo ||
+                          transporteData?.provider?.nome ||
+                          "—"}
                       </Text>
 
-                      <Text
+                      <View
                         style={{
-                          color: theme.colors.textSecondary,
-                          marginTop: 4,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 10,
                         }}
                       >
-                        Destino: {transporteData?.toAddress || "—"}
-                      </Text>
+                        <Ionicons
+                          name="person-outline"
+                          size={18}
+                          color={theme.colors.purple}
+                        />
+                        <Ionicons
+                          name="car-outline"
+                          size={18}
+                          color={theme.colors.purple}
+                        />
+                      </View>
 
-                      <Text
+                      <View
                         style={{
-                          color: theme.colors.textSecondary,
-                          marginTop: 4,
+                          height: 1,
+                          backgroundColor: theme.colors.border,
+                          marginVertical: 10,
+                        }}
+                      />
+
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "flex-end",
+                          justifyContent: "space-between",
+                          gap: 10,
                         }}
                       >
-                        Motivo: {transporteData?.reason || "—"}
-                      </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              color: theme.colors.text,
+                              fontWeight: "900",
+                            }}
+                          >
+                            Motorista:{" "}
+                            <Text
+                              style={{
+                                color: theme.colors.text,
+                                fontWeight: "700",
+                              }}
+                            >
+                              {transporteData?.provider?.motorista || "—"}
+                            </Text>
+                          </Text>
+
+                          <Text
+                            style={{
+                              color: theme.colors.text,
+                              fontWeight: "900",
+                              marginTop: 6,
+                            }}
+                          >
+                            Placa:{" "}
+                            <Text
+                              style={{
+                                color: theme.colors.text,
+                                fontWeight: "700",
+                              }}
+                            >
+                              {transporteData?.provider?.placa || "—"}
+                            </Text>
+                          </Text>
+                        </View>
+                      </View>
                     </View>
                   </View>
                 ) : null}
 
                 <DividerSpace />
 
-                {isAdmin ? (
+                {/* ADMIN: parecer + justificativa */}
+                {canAdminEdit ? (
                   <View style={{ marginTop: 12 }}>
-                    {/* LINHA DO "PARECER" */}
                     <OptionRow
                       activeOpacity={0.85}
                       onPress={() => setParecerOpen((v) => !v)}
@@ -610,7 +708,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                       </View>
                     </OptionRow>
 
-                    {/* ACCORDION */}
                     {parecerOpen ? (
                       <View
                         style={{
@@ -629,6 +726,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
                           const optColor =
                             opt.color || theme.colors.textSecondary;
+
                           return (
                             <TouchableOpacity
                               key={opt.value}
@@ -651,7 +749,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                                   gap: 10,
                                 }}
                               >
-                                {/* ✅ bolinha: só pinta se tiver cor */}
                                 <View
                                   style={{
                                     width: 10,
@@ -694,7 +791,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                       </View>
                     ) : null}
 
-                    {/* INPUT JUSTIFICATIVA */}
                     <View style={{ marginTop: 12 }}>
                       <Text
                         style={{
@@ -734,8 +830,8 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                   </View>
                 ) : null}
 
-                {/* INPUT JUSTIFICATIVA */}
-                {!isAdmin && (data?.justificativa || "").trim() ? (
+                {/* USER: justificativa */}
+                {!canAdminEdit && (data?.justificativa || "").trim() ? (
                   <View style={{ marginTop: 12 }}>
                     <Text
                       style={{
@@ -767,25 +863,11 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                   </View>
                 ) : null}
 
-                {/* TRANSPORTE */}
-                <View style={{ marginTop: 2 }}></View>
-
                 <DividerSpace />
 
-                {/* DESCRIÇÃO FORMATADA */}
-
-                {isAdmin ? (
+                {canAdminEdit ? (
                   <>
                     <DividerSpace />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: "900",
-                        color: theme.colors.text,
-                        marginBottom: 10,
-                      }}
-                    ></Text>
-
                     {!clinicasDisponiveisNoSlot.length ? (
                       <Text style={{ color: theme.colors.textSecondary }}>
                         —
@@ -827,8 +909,8 @@ export default function ReplyExameseconsultas({ navigation, route }) {
               </>
             )}
 
-            {/* ✅ BOTÃO SALVAR (GERAL) */}
-            {isAdmin ? (
+            {/* BOTÃO SALVAR */}
+            {canAdminEdit ? (
               <View style={{ padding: 12 }}>
                 <TouchableOpacity
                   activeOpacity={0.9}

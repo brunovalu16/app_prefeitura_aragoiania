@@ -18,6 +18,7 @@ import AreaRequestsCard from "../../components/AreaRequestsCard";
 import { auth } from "../../services/firebase";
 import { deleteRequest, subscribeRequests } from "../../services/requests";
 
+import { getAdminScopeByEmail } from "../../services/adminScope";
 import { Container } from "./styles";
 
 // ✅ mapa limpo de rotas por área
@@ -27,7 +28,6 @@ const AREA_REPLY_ROUTE = {
   defesa: "ReplyDefesa",
 };
 
-//função deletar
 async function handleDeleteRequest(request) {
   try {
     const status = (request?.status || "").toLowerCase();
@@ -59,7 +59,6 @@ async function handleDeleteRequest(request) {
   }
 }
 
-// ✅ helper de navegação
 function navigateToReply(navigation, request) {
   const route = AREA_REPLY_ROUTE[request?.areaId] || "Replyiluminacao";
   navigation.navigate(route, { requestId: request?.id });
@@ -68,11 +67,12 @@ function navigateToReply(navigation, request) {
 export default function Recebesolicitacoes({ navigation }) {
   const [requests, setRequests] = useState([]);
   const [uid, setUid] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+
+  const [scope, setScope] = useState(null);
+  const isAdmin = !!scope;
 
   const [openUserId, setOpenUserId] = useState(null);
 
-  // ✅ loading states
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
 
@@ -80,10 +80,10 @@ export default function Recebesolicitacoes({ navigation }) {
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       const nextUid = user?.uid || null;
-      const email = (user?.email || "").toLowerCase();
+      const email = String(user?.email || "").toLowerCase();
 
       setUid(nextUid);
-      setIsAdmin(email === "admin@teste.com.br");
+      setScope(getAdminScopeByEmail(email)); // ✅ agora reconhece todos admins
       setAuthLoading(false);
 
       if (!nextUid) navigation.replace("Login");
@@ -92,14 +92,14 @@ export default function Recebesolicitacoes({ navigation }) {
     return () => unsubAuth();
   }, [navigation]);
 
-  // ✅ 2) quando tiver UID, assina o Firestore
+  // ✅ 2) assina Firestore
   useEffect(() => {
     if (!uid) return;
 
     setDataLoading(true);
 
     const unsub = subscribeRequests({
-      userId: isAdmin ? undefined : uid, // ✅ admin: sem filtro de userId
+      userId: isAdmin ? undefined : uid, // ✅ admin: sem filtro userId (pega tudo)
       max: 200,
       onChange: (list) => {
         setRequests(Array.isArray(list) ? list : []);
@@ -110,21 +110,21 @@ export default function Recebesolicitacoes({ navigation }) {
     return () => unsub?.();
   }, [uid, isAdmin]);
 
-  // ✅ sanitiza/filtra visibilidade (segurança extra)
   const visibleRequests = useMemo(() => {
     const all = Array.isArray(requests) ? requests : [];
 
-    // ✅ REGRA: concluídas/ocultas não aparecem pra ninguém (inclusive admin)
+    // ✅ REGRA: ocultas não aparecem
     const notHidden = all.filter((r) => r?.isHidden !== true);
 
-    // ✅ usuário normal: só as dele
+    // ✅ user normal: só as dele
     if (!isAdmin) return notHidden.filter((r) => r?.userId === uid);
 
-    // ✅ admin: todas (não ocultas), de todos os usuários
-    return notHidden;
-  }, [requests, isAdmin, uid]);
+    // ✅ admin: filtra só áreas permitidas
+    const allowedAreas = Array.isArray(scope?.areaIds) ? scope.areaIds : [];
+    return notHidden.filter((r) => allowedAreas.includes(r?.areaId));
+  }, [requests, isAdmin, uid, scope]);
 
-  // ✅ usuário normal: agrupa por área (como você já tinha)
+  // ✅ user normal: agrupa por área
   const groupedByArea = useMemo(() => {
     const map = {};
 
@@ -157,7 +157,7 @@ export default function Recebesolicitacoes({ navigation }) {
     return arr;
   }, [visibleRequests]);
 
-  // ✅ admin: agrupa por USUÁRIO -> ÁREA -> solicitações (volta o comportamento antigo)
+  // ✅ admin: agrupa por usuário -> área -> solicitações
   const groupedByUserThenArea = useMemo(() => {
     const usersMap = {};
 
@@ -186,7 +186,7 @@ export default function Recebesolicitacoes({ navigation }) {
       usersMap[userKey].areasMap[areaId].requests.push(r);
     });
 
-    const usersArr = Object.values(usersMap)
+    return Object.values(usersMap)
       .map((u) => {
         const areasArr = Object.values(u.areasMap).sort((a, b) =>
           (a.areaLabel || "").localeCompare(b.areaLabel || ""),
@@ -203,8 +203,6 @@ export default function Recebesolicitacoes({ navigation }) {
         return { userId: u.userId, email: u.email, areas: areasArr };
       })
       .sort((a, b) => (a.email || "").localeCompare(b.email || ""));
-
-    return usersArr;
   }, [visibleRequests]);
 
   const showLoading = authLoading || (!!uid && dataLoading);
@@ -249,7 +247,6 @@ export default function Recebesolicitacoes({ navigation }) {
 
                 return (
                   <View key={userGroup.userId} style={{ marginBottom: 12 }}>
-                    {/* ✅ Header fechado (email roxo já vem no Title do AdminUserCard) */}
                     <AdminUserCard
                       userEmail={userGroup.email}
                       count={userGroup.areas.reduce(
@@ -259,7 +256,6 @@ export default function Recebesolicitacoes({ navigation }) {
                       onPress={() => toggleUser(userGroup.userId)}
                     />
 
-                    {/* ✅ Corpo com rolagem vertical (quando abre) */}
                     {isOpen && (
                       <View
                         style={{
@@ -272,7 +268,7 @@ export default function Recebesolicitacoes({ navigation }) {
                         }}
                       >
                         <ScrollView
-                          style={{ maxHeight: 380 }} // ✅ rolagem vertical do “conteúdo do usuário”
+                          style={{ maxHeight: 380 }}
                           contentContainerStyle={{ paddingBottom: 10 }}
                           showsVerticalScrollIndicator={false}
                           nestedScrollEnabled
@@ -286,7 +282,7 @@ export default function Recebesolicitacoes({ navigation }) {
                                 navigateToReply(navigation, r)
                               }
                               onDeleteRequest={handleDeleteRequest}
-                              defaultOpen={false} // ✅ áreas começam fechadas
+                              defaultOpen={false}
                               minListHeight={160}
                               maxListHeight={320}
                             />
@@ -298,7 +294,6 @@ export default function Recebesolicitacoes({ navigation }) {
                 );
               })
             ) : (
-              // ✅ USER VIEW: áreas -> solicitações
               groupedByArea.map((group) => (
                 <AreaRequestsCard
                   key={group.areaId}

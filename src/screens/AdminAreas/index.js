@@ -1,58 +1,85 @@
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
+
 import HomeLastRequestCard from "../../components/HomeLastRequestCard";
+import { getAdminScopeByEmail } from "../../services/adminScope";
 import { auth } from "../../services/firebase";
 
-const ADMIN_EMAIL = "admin@teste.com.br";
-
-const AREAS = [
-  { id: "iluminacao", label: "ILUMINAÇÃO PÚBLICA" },
-  { id: "saude", label: "ÁREA DA SAÚDE" },
-  { id: "defesa", label: "DEFESA CIVIL" },
-];
-
 export default function AdminAreas({ navigation }) {
-  const [ok, setOk] = useState(false);
+  const [scope, setScope] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      const email = (user?.email || "").toLowerCase();
-      const isAdmin = email === ADMIN_EMAIL.toLowerCase();
+      if (!user) {
+        setAuthLoading(false);
+        return navigation.replace("Login");
+      }
 
-      if (!user) return navigation.replace("Login");
-      if (!isAdmin) {
+      const nextScope = getAdminScopeByEmail(user?.email);
+
+      if (!nextScope) {
+        setAuthLoading(false);
         Alert.alert("Acesso negado", "Somente admin pode acessar esta área.");
         return navigation.replace("Home");
       }
 
-      setOk(true);
+      setScope(nextScope);
+      setAuthLoading(false);
     });
 
     return () => unsub();
   }, [navigation]);
 
-  if (!ok) return null;
+  const areaId = scope?.areaIds?.[0];
+  if (!areaId) return null;
+
+  const canGo = !!scope && !!areaId;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
-      {AREAS.map((a) => (
-        <View key={a.id} style={{ marginBottom: 10 }}>
+      {authLoading ? (
+        <View
+          style={{
+            minHeight: 260,
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+          }}
+        >
+          <ActivityIndicator size="large" />
+          <Text style={{ opacity: 0.7 }}>Verificando acesso...</Text>
+        </View>
+      ) : !scope ? (
+        // se caiu aqui, já redirecionou/alertou, mas deixo seguro
+        <View style={{ paddingVertical: 14 }}>
+          <Text style={{ opacity: 0.75 }}>Acesso não autorizado.</Text>
+        </View>
+      ) : (
+        <View style={{ marginBottom: 10 }}>
           <HomeLastRequestCard
             title="PAINEL ADMIN"
-            subtitle={a.label}
-            status="" // pode deixar vazio
-            onPress={() =>
+            subtitle={scope.label}
+            status=""
+            onPress={() => {
+              if (!canGo) {
+                Alert.alert(
+                  "Erro",
+                  "Não foi possível identificar a área do admin.",
+                );
+                return;
+              }
+
               navigation.navigate("AdminInboxArea", {
-                areaId: a.id,
-                areaLabel: a.label,
-              })
-            }
+                areaId,
+                areaLabel: scope.label,
+              });
+            }}
             onMenuPress={() => {}}
-            // ✅ NÃO PASSA onDeletePress / canDelete
           />
         </View>
-      ))}
+      )}
     </ScrollView>
   );
 }

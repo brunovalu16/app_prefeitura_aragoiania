@@ -2,7 +2,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
-import AreaRequestsCard from "../../components/AreaRequestsCard"; // ✅ ADD
+import AreaRequestsCard from "../../components/AreaRequestsCard";
 import HomeBigCarousel from "../../components/HomeBigCarousel";
 import HomeRequestsList from "../../components/HomeRequestsList";
 
@@ -11,7 +11,7 @@ import { subscribeRequests } from "../../services/requests";
 
 import { Container } from "./styles";
 
-const ADMIN_EMAIL = "admin@teste.com.br";
+import { getAdminScopeByEmail } from "../../services/adminScope";
 
 // ✅ mapa limpo de rotas por área (igual Recebesolicitacoes)
 const AREA_REPLY_ROUTE = {
@@ -26,17 +26,21 @@ function navigateToReply(navigation, request) {
 }
 
 export default function Home({ navigation }) {
-  const [isAdmin, setIsAdmin] = useState(false);
   const [uid, setUid] = useState(null);
+  const [scope, setScope] = useState(null);
 
   const [myRequests, setMyRequests] = useState([]);
   const [authLoading, setAuthLoading] = useState(true);
 
+  const isAdmin = !!scope;
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      const email = (user?.email || "").toLowerCase();
-      setIsAdmin(email === ADMIN_EMAIL.toLowerCase());
+      const email = String(user?.email || "").toLowerCase();
+
+      setScope(getAdminScopeByEmail(email)); // ✅ agora reconhece adminsaude/adminiluminacao
       setUid(user?.uid || null);
+
       setAuthLoading(false);
     });
 
@@ -63,22 +67,21 @@ export default function Home({ navigation }) {
     return () => unsub?.();
   }, [uid, isAdmin, authLoading]);
 
+  // ✅ card admin aparece para QUALQUER admin do scope
   const items = isAdmin
     ? [
         {
           id: "admin-1",
           title: "PAINEL ADMIN",
-          subtitle: "CAIXA DE ENTRADA POR ÁREA",
+          subtitle: scope?.label || "CAIXA DE ENTRADA POR ÁREA",
           route: "AdminUsersInbox",
         },
       ]
     : [];
 
-  // ✅ AGRUPA POR ÁREA (igual Recebesolicitacoes)
+  // ✅ AGRUPA POR ÁREA (user normal)
   const groupedByAreaQuick = useMemo(() => {
     const map = {};
-
-    // ✅ regras iguais: não mostrar hidden (concluída pode aparecer, como no Recebesolicitacoes)
     const visibleRequests = (myRequests || []).filter((r) => !r?.isHidden);
 
     visibleRequests.forEach((r) => {
@@ -97,10 +100,8 @@ export default function Home({ navigation }) {
 
     const arr = Object.values(map);
 
-    // ✅ ordena áreas por label
     arr.sort((a, b) => (a.areaLabel || "").localeCompare(b.areaLabel || ""));
 
-    // ✅ ordena requests dentro de cada área por data (mais recente em cima)
     arr.forEach((g) => {
       g.requests.sort((a, b) => {
         const ta = a?.createdAt?.toMillis?.() ?? 0;
@@ -109,7 +110,6 @@ export default function Home({ navigation }) {
       });
     });
 
-    // ✅ “atalho rápido”: mostra só as 3 primeiras áreas (ajuste se quiser)
     return arr.slice(0, 3);
   }, [myRequests]);
 
@@ -128,7 +128,7 @@ export default function Home({ navigation }) {
           onMenuPressItem={() => {}}
         />
 
-        {/* ✅ card mestre (accordion) por área */}
+        {/* ✅ user normal */}
         {!isAdmin && (
           <View style={{ paddingHorizontal: 12, marginTop: -160 }}>
             {groupedByAreaQuick.length ? (

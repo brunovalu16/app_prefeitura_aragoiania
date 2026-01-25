@@ -26,6 +26,7 @@ import {
   updateRequestStatus,
 } from "../../../services/requests";
 
+import { getAdminScopeByEmail } from "../../../services/adminScope"; // ✅ ADD
 import { getAuthUserId } from "../../../services/userId";
 
 import {
@@ -39,7 +40,7 @@ import {
   PreviewImage,
   PreviewItem,
   Row,
-  SaveStatusButton, // ✅ ADD
+  SaveStatusButton,
   SaveStatusText,
   SectionTitle,
   SmallAction,
@@ -59,14 +60,10 @@ export default function Replyiluminacao({ navigation, route }) {
   const [draftStatus, setDraftStatus] = useState("execucao");
   const [savingStatus, setSavingStatus] = useState(false);
 
-  //campo e notas
+  // ✅ notas por etapa
   const [noteAnalise, setNoteAnalise] = useState("");
   const [notePendente, setNotePendente] = useState("");
   const [noteExecucao, setNoteExecucao] = useState("");
-
-  const canEditAnalise = isAdmin && draftStatus === "analise";
-  const canEditPendente = isAdmin && draftStatus === "pendente";
-  const canEditExecucao = isAdmin && draftStatus === "execucao";
 
   // ✅ preview modal + navegação
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -76,19 +73,23 @@ export default function Replyiluminacao({ navigation, route }) {
   // ✅ uploads pendentes (spinner na miniatura)
   const [pendingProcessThumbs, setPendingProcessThumbs] = useState([]); // [{id, uri}]
 
-  //para verificar usuario logado
-  const auth = getAuth();
+  // ✅ Auth / Admin (agora suporta adminsaude@..., adminiluminacao@..., etc)
+  const firebaseAuth = getAuth();
+  const userEmail = (firebaseAuth.currentUser?.email || "").toLowerCase();
+  const adminScope = getAdminScopeByEmail(userEmail);
+  const isAdmin = !!adminScope;
 
-  const isAdmin =
-    (auth.currentUser?.email || "").toLowerCase() ===
-    "admin@teste.com.br".toLowerCase();
+  // ✅ permissões de edição (só admin e na etapa correspondente)
+  const canEditAnalise = isAdmin && String(draftStatus) === "analise";
+  const canEditPendente = isAdmin && String(draftStatus) === "pendente";
+  const canEditExecucao = isAdmin && String(draftStatus) === "execucao";
 
-  //campo e notas
+  // ✅ quando carrega dado, sincroniza status e notas
   useEffect(() => {
-    setDraftStatus(data?.status || "analise");
-    setNoteAnalise(data?.noteAnalise || "");
-    setNotePendente(data?.notePendente || "");
-    setNoteExecucao(data?.noteExecucao || "");
+    setDraftStatus(String(data?.status || "analise").toLowerCase());
+    setNoteAnalise(String(data?.noteAnalise || ""));
+    setNotePendente(String(data?.notePendente || ""));
+    setNoteExecucao(String(data?.noteExecucao || ""));
   }, [data?.status, data?.noteAnalise, data?.notePendente, data?.noteExecucao]);
 
   function openPreview(list, index = 0) {
@@ -132,6 +133,12 @@ export default function Replyiluminacao({ navigation, route }) {
   async function handleSaveStatus() {
     try {
       if (!requestId) return Alert.alert("Erro", "requestId inválido.");
+      if (!isAdmin) {
+        return Alert.alert(
+          "Acesso negado",
+          "Somente admin pode salvar status.",
+        );
+      }
 
       setSavingStatus(true);
 
@@ -142,12 +149,10 @@ export default function Replyiluminacao({ navigation, route }) {
 
       await updateRequestStatus({
         requestId,
-        status: statusLower, // ✅ salva status normalizado
+        status: statusLower,
         userId,
         notes: { noteAnalise, notePendente, noteExecucao },
-
-        // ✅ REGRA GLOBAL: "concluída" some do app
-        isHidden: isConcluida,
+        isHidden: isConcluida, // ✅ concluiu = some do app
       });
 
       Alert.alert("Sucesso", "Status atualizado!");
@@ -169,10 +174,6 @@ export default function Replyiluminacao({ navigation, route }) {
 
     return () => unsub?.();
   }, [requestId]);
-
-  useEffect(() => {
-    setDraftStatus(data?.status || "execucao");
-  }, [data?.status]);
 
   const requestTitle =
     data?.requestTitle || "SOLICITAÇÃO ILUMINAÇÃO PÚBLICA - --";
@@ -202,13 +203,11 @@ export default function Replyiluminacao({ navigation, route }) {
     return img?.url || img?.uri || null;
   }
 
-  // ✅ arrays “reais” do Firestore (objetos)
   const requestImages = Array.isArray(data?.images) ? data.images : [];
   const processImages = Array.isArray(data?.processImages)
     ? data.processImages
     : [];
 
-  // ✅ listas só de uri pro modal
   const requestUris = requestImages.map(getImgUri).filter(Boolean);
   const processUris = processImages.map(getImgUri).filter(Boolean);
 
@@ -240,48 +239,34 @@ export default function Replyiluminacao({ navigation, route }) {
     return true;
   }
 
-  // ✅ excluir imagem “real” (Firestore + Storage)
   async function handleDeleteImage(field, item) {
     if (!requestId) return;
 
-    Alert.alert(
-      "Remover foto",
-      "Deseja remover esta foto?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Remover",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              if (field === "processImages") {
-                await deleteProcessImage({
-                  requestId,
-                  field,
-                  imgObj: item,
-                });
-                return;
-              }
-
-              if (field === "images") {
-                await deleteRequestImage({
-                  requestId,
-                  imgObj: item,
-                });
-                return;
-              }
-
-              // fallback (se passar algum field errado)
-              throw new Error(`Campo inválido para deletar imagem: ${field}`);
-            } catch (e) {
-              console.log("❌ delete image:", e?.code, e?.message);
-              Alert.alert("Erro", "Não foi possível remover a foto.");
+    Alert.alert("Remover foto", "Deseja remover esta foto?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Remover",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (field === "processImages") {
+              await deleteProcessImage({ requestId, field, imgObj: item });
+              return;
             }
-          },
+
+            if (field === "images") {
+              await deleteRequestImage({ requestId, imgObj: item });
+              return;
+            }
+
+            throw new Error(`Campo inválido para deletar imagem: ${field}`);
+          } catch (e) {
+            console.log("❌ delete image:", e?.code, e?.message);
+            Alert.alert("Erro", "Não foi possível remover a foto.");
+          }
         },
-      ],
-      { cancelable: true },
-    );
+      },
+    ]);
   }
 
   async function takePhoto() {
@@ -311,7 +296,6 @@ export default function Replyiluminacao({ navigation, route }) {
       const asset = result.assets?.[0];
       if (!asset?.uri) return;
 
-      // ✅ miniatura pendente com spinner
       tempId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       setPendingProcessThumbs((prev) => [
         { id: tempId, uri: asset.uri },
@@ -430,7 +414,6 @@ export default function Replyiluminacao({ navigation, route }) {
 
           <Divider />
 
-          {/* ===================== IMAGENS DA SOLICITAÇÃO ===================== */}
           <SectionTitle>Imagens da solicitação</SectionTitle>
 
           {!requestImages.length ? (
@@ -457,7 +440,6 @@ export default function Replyiluminacao({ navigation, route }) {
                         style={{ width: "100%", height: "100%", opacity: 1 }}
                       />
 
-                      {/* ✅ X para excluir */}
                       <Pressable
                         onPress={() => handleDeleteImage("images", item)}
                         style={{
@@ -484,7 +466,6 @@ export default function Replyiluminacao({ navigation, route }) {
 
           <Divider />
 
-          {/* ===================== FOTOS DO PROCESSO ===================== */}
           <SectionTitle>Fotos do processo de execução</SectionTitle>
 
           <ActionRow>
@@ -507,7 +488,6 @@ export default function Replyiluminacao({ navigation, route }) {
             </SmallAction>
           </ActionRow>
 
-          {/* ✅ grid do processo: pendentes (spinner) + reais (com X) */}
           {!processImages.length && !pendingProcessThumbs.length ? (
             <ValueText style={{ marginTop: 10 }}>
               Nenhuma foto do processo enviada.
@@ -520,7 +500,6 @@ export default function Replyiluminacao({ navigation, route }) {
               </FooterHint>
 
               <PreviewGrid>
-                {/* pendentes primeiro */}
                 {pendingProcessThumbs.map((p) => (
                   <PreviewItem key={`pending-${p.id}`} activeOpacity={1}>
                     <PreviewImage
@@ -543,7 +522,6 @@ export default function Replyiluminacao({ navigation, route }) {
                   </PreviewItem>
                 ))}
 
-                {/* reais */}
                 {processImages.map((item, idx) => {
                   const uri = getImgUri(item);
                   if (!uri) return null;
@@ -566,7 +544,6 @@ export default function Replyiluminacao({ navigation, route }) {
                         style={{ width: "100%", height: "100%", opacity: 1 }}
                       />
 
-                      {/* ✅ X para excluir */}
                       <Pressable
                         onPress={() => handleDeleteImage("processImages", item)}
                         style={{
@@ -603,11 +580,8 @@ export default function Replyiluminacao({ navigation, route }) {
 
           <Divider />
 
-          <Divider />
-
           <SectionTitle>Informações por etapa</SectionTitle>
 
-          {/* ANÁLISE */}
           <ValueText style={{ fontWeight: "800", marginTop: 8 }}>
             ANÁLISE
           </ValueText>
@@ -629,7 +603,6 @@ export default function Replyiluminacao({ navigation, route }) {
             <ValueText>{noteAnalise?.trim() ? noteAnalise : "—"}</ValueText>
           )}
 
-          {/* PENDENTE */}
           <ValueText style={{ fontWeight: "800", marginTop: 14 }}>
             PENDENTE
           </ValueText>
@@ -651,7 +624,6 @@ export default function Replyiluminacao({ navigation, route }) {
             <ValueText>{notePendente?.trim() ? notePendente : "—"}</ValueText>
           )}
 
-          {/* EM EXECUÇÃO */}
           <ValueText style={{ fontWeight: "800", marginTop: 14 }}>
             EM EXECUÇÃO
           </ValueText>
@@ -678,7 +650,8 @@ export default function Replyiluminacao({ navigation, route }) {
           <SaveStatusButton
             onPress={handleSaveStatus}
             disabled={
-              savingStatus || draftStatus === (data?.status || "execucao")
+              savingStatus ||
+              String(draftStatus) === String(data?.status || "execucao")
             }
           >
             {savingStatus ? (
@@ -689,7 +662,6 @@ export default function Replyiluminacao({ navigation, route }) {
           </SaveStatusButton>
         )}
 
-        {/* ===================== MODAL CARROSSEL FOTOS ===================== */}
         <Modal
           visible={previewOpen}
           transparent
@@ -697,7 +669,6 @@ export default function Replyiluminacao({ navigation, route }) {
           onRequestClose={closePreview}
         >
           <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)" }}>
-            {/* toque no fundo fecha */}
             <Pressable
               onPress={closePreview}
               style={{
@@ -749,7 +720,6 @@ export default function Replyiluminacao({ navigation, route }) {
               )}
             />
 
-            {/* X fechar */}
             <Pressable
               onPress={closePreview}
               style={{
@@ -768,7 +738,6 @@ export default function Replyiluminacao({ navigation, route }) {
               <Ionicons name="close" size={22} color="#fff" />
             </Pressable>
 
-            {/* indicador 1/N */}
             <View
               style={{
                 position: "absolute",
@@ -787,7 +756,6 @@ export default function Replyiluminacao({ navigation, route }) {
               </ValueText>
             </View>
 
-            {/* seta esquerda */}
             <Pressable
               onPress={goPrev}
               disabled={!canPrev}
@@ -809,7 +777,6 @@ export default function Replyiluminacao({ navigation, route }) {
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </Pressable>
 
-            {/* seta direita */}
             <Pressable
               onPress={goNext}
               disabled={!canNext}
