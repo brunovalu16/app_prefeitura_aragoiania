@@ -1,8 +1,12 @@
-import { useMemo, useState } from "react";
-import { FlatList, useWindowDimensions } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { Alert, FlatList, useWindowDimensions } from "react-native";
 import { Images } from "../../assets/images";
 import ServiceCarouselCard from "../ServiceCarouselCard";
 import { BigCarousel, Dot, DotsRow } from "./styles";
+
+import { getAuth } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../services/firebase";
 
 export default function HomeBigCarousel({ navigation }) {
   const { width } = useWindowDimensions();
@@ -11,6 +15,34 @@ export default function HomeBigCarousel({ navigation }) {
   const CARD_WIDTH = Math.round(width * 0.58);
   const CARD_GAP = 55;
   const SNAP = CARD_WIDTH + CARD_GAP;
+
+  const handlePressSaude = useCallback(async () => {
+    try {
+      const auth = getAuth();
+      const uid = auth.currentUser?.uid;
+
+      if (!uid) {
+        Alert.alert("Atenção", "Faça login para acessar.");
+        return;
+      }
+
+      const snap = await getDoc(doc(db, "users", uid));
+      const sus = String(snap.data()?.susDigitado || "").trim();
+
+      if (sus !== "00000") {
+        Alert.alert(
+          "Acesso bloqueado",
+          "Usuário não tem permissão para acessar o SUS na região de Aragoiania.",
+        );
+        return;
+      }
+
+      navigation.navigate("SolicitarSaude");
+    } catch (e) {
+      console.log("❌ SAUDE CHECK:", e);
+      Alert.alert("Erro", "Não foi possível validar seu acesso.");
+    }
+  }, [navigation]);
 
   const bigCards = useMemo(
     () => [
@@ -24,16 +56,28 @@ export default function HomeBigCarousel({ navigation }) {
         id: "serv_area_2",
         title: "ÁREA DA\nSAÚDE",
         image: Images.saude,
-        onPress: () => navigation.navigate("SolicitarSaude"), // ✅
+        onPress: handlePressSaude,
       },
       {
         id: "serv_area_3",
+        title: "ASSISTÊNCIA\nSOCIAL",
+        icon: "heart-circle-outline",
+        onPress: () => {},
+      },
+      {
+        id: "serv_area_4",
+        title: "EDUCAÇÃO",
+        icon: "school-outline",
+        onPress: () => {},
+      },
+      {
+        id: "serv_area_5",
         title: "HABITAÇÃO\nARAGOIANIA",
-        icon: "home-outline", // 🏠 ícone casa
+        icon: "home-outline",
         onPress: () => {},
       },
     ],
-    [navigation],
+    [navigation, handlePressSaude],
   );
 
   return (

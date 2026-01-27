@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRef, useState } from "react";
-import { Alert, Modal, ScrollView } from "react-native";
+import { Alert, ScrollView } from "react-native";
 import { useTheme } from "styled-components/native";
 
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
@@ -11,16 +11,6 @@ import { uploadImageAsync } from "../../services/uploadImage";
 
 import { Images } from "../../assets/images";
 import {
-  AlertBody,
-  AlertCard,
-  AlertFooter,
-  AlertHeader,
-  AlertHeaderRow,
-  AlertMessage,
-  AlertOkBtn,
-  AlertOkText,
-  AlertOverlay,
-  AlertTitle,
   AvatarBtn,
   AvatarImage,
   Col,
@@ -44,7 +34,7 @@ import {
   SubmitText,
   SusInput,
   SusRow,
-  TopBack,
+  TopBack
 } from "./styles";
 
 export default function Cadastro({ navigation }) {
@@ -63,21 +53,13 @@ export default function Cadastro({ navigation }) {
   const [fotoTitulo1, setFotoTitulo1] = useState(null); // frente
   const [fotoTitulo2, setFotoTitulo2] = useState(null); // verso
 
-  // ✅ Popup custom
-  const [popupVisible, setPopupVisible] = useState(false);
-  const [popupTitle, setPopupTitle] = useState("");
-  const [popupMessage, setPopupMessage] = useState("");
-
   // 0º SUS (5 dígitos)
   const [sus, setSus] = useState("");
-  const [susBloqueado, setSusBloqueado] = useState(false);
 
-  const SUS_PADRAO_LIBERADO = "00000";
   const SUS_TAMANHO = 5;
 
-  // ✅ Libera o formulário só quando SUS tiver 5 dígitos e bater com o padrão
-  const susLiberado =
-    sus.length === SUS_TAMANHO && !susBloqueado && sus === SUS_PADRAO_LIBERADO;
+  // ✅ Libera o formulário quando SUS tiver 5 dígitos (qualquer número)
+  const susLiberado = sus.length === SUS_TAMANHO;
 
   // 1º Nome
   const [nome, setNome] = useState("");
@@ -103,38 +85,6 @@ export default function Cadastro({ navigation }) {
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [showSenha, setShowSenha] = useState(false);
   const [showConfirmarSenha, setShowConfirmarSenha] = useState(false);
-
-  // ✅ Popup
-  function showPopup(title, message) {
-    setPopupTitle(title);
-    setPopupMessage(message);
-    setPopupVisible(true);
-  }
-  function closePopup() {
-    setPopupVisible(false);
-  }
-
-  // ✅ Validação SUS: só valida quando tiver 5 dígitos
-  function validarSusOuBloquear(susValue) {
-    const susLimpo = (susValue || "").replace(/\D/g, "");
-
-    if (susLimpo.length < SUS_TAMANHO) {
-      setSusBloqueado(false);
-      return;
-    }
-
-    const permitido = susLimpo === SUS_PADRAO_LIBERADO;
-
-    if (!permitido) {
-      setSusBloqueado(true);
-      showPopup(
-        "Acesso bloqueado",
-        "Usuário não tem permissão para acessar o SUS na região de Aragoiania.",
-      );
-    } else {
-      setSusBloqueado(false);
-    }
-  }
 
   // ✅ Duplo clique no SUS (seleciona tudo)
   const susRef = useRef(null);
@@ -218,8 +168,10 @@ export default function Cadastro({ navigation }) {
 
   // ✅ Helper: pega FRENTE e depois VERSO (câmera ou galeria)
   async function pegarFrenteVerso({ source, setFrente, setVerso }) {
-    if (!susLiberado) return;
-    if (isPicking || isSubmitting) return;
+    if (!susLiberado) {
+      Alert.alert("SUS", "Digite um número de SUS com 5 dígitos.");
+      return;
+    }
 
     setIsPicking(true);
 
@@ -326,12 +278,9 @@ export default function Cadastro({ navigation }) {
   async function handleCadastrar() {
     if (isSubmitting) return;
 
-    // ✅ mantém a regra do SUS
+    // ✅ regra nova: só exige 5 dígitos
     if (!susLiberado) {
-      Alert.alert(
-        "SUS",
-        `Digite o SUS correto (${SUS_PADRAO_LIBERADO}) para liberar.`,
-      );
+      Alert.alert("SUS", "Digite um número de SUS com 5 dígitos.");
       return;
     }
 
@@ -484,35 +433,6 @@ export default function Cadastro({ navigation }) {
 
   return (
     <Container>
-      <Modal
-        visible={popupVisible}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={closePopup}
-      >
-        <AlertOverlay activeOpacity={1} onPress={closePopup}>
-          <AlertCard activeOpacity={1} onPress={() => {}}>
-            <AlertHeader>
-              <AlertHeaderRow>
-                <Ionicons name="warning-outline" size={18} color="#FFFFFF" />
-                <AlertTitle>{popupTitle}</AlertTitle>
-              </AlertHeaderRow>
-            </AlertHeader>
-
-            <AlertBody>
-              <AlertMessage>{popupMessage}</AlertMessage>
-            </AlertBody>
-
-            <AlertFooter>
-              <AlertOkBtn onPress={closePopup} activeOpacity={0.9}>
-                <AlertOkText>OK</AlertOkText>
-              </AlertOkBtn>
-            </AlertFooter>
-          </AlertCard>
-        </AlertOverlay>
-      </Modal>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -563,14 +483,7 @@ export default function Cadastro({ navigation }) {
               onChangeText={(v) => {
                 const limpo = v.replace(/\D/g, "").slice(0, SUS_TAMANHO);
                 setSus(limpo);
-
-                if (limpo.length === SUS_TAMANHO) {
-                  validarSusOuBloquear(limpo);
-                } else {
-                  setSusBloqueado(false);
-                }
               }}
-              onBlur={() => validarSusOuBloquear(sus)}
               keyboardType="numeric"
               placeholder="Digite o número do SUS"
               placeholderTextColor={theme.colors.surface}
@@ -579,12 +492,6 @@ export default function Cadastro({ navigation }) {
               maxLength={SUS_TAMANHO}
             />
           </SusRow>
-
-          {!susLiberado && (
-            <SectionHint style={{ marginTop: 10 }}>
-              Digite o número do SUS para liberar o cadastro:
-            </SectionHint>
-          )}
 
           <FormLock
             pointerEvents={susLiberado ? "auto" : "none"}
