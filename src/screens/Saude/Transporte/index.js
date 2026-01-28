@@ -74,6 +74,36 @@ export default function Transporte({ navigation }) {
     [],
   );
 
+  // ✅ horários mockados por tipo de veículo
+  // ✅ horários mockados (5 horários a partir de 05:00) - para TODOS
+  const vehicleTimeOptions = useMemo(
+    () => ({
+      ambulancia: ["05:00", "06:00", "07:00", "08:00", "09:00"],
+      pequeno: ["05:00", "06:00", "07:00", "08:00", "09:00"],
+      pcd: ["05:00", "06:00", "07:00", "08:00", "09:00"],
+      van: ["05:00", "06:00", "07:00", "08:00", "09:00"],
+    }),
+    [],
+  );
+
+  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+
+  // ✅ accordion de horários (aparece só quando tiver card selecionado)
+  const [timeAccordionOpen, setTimeAccordionOpen] = useState(false);
+
+  // ✅ horário selecionado
+  const [selectedTime, setSelectedTime] = useState(null);
+
+  // ✅ lista de horários do veículo selecionado
+  const availableTimes = selectedVehicleId
+    ? vehicleTimeOptions[selectedVehicleId] || []
+    : [];
+
+  useEffect(() => {
+    setSelectedTime(null);
+    setTimeAccordionOpen(false);
+  }, [selectedVehicleId]);
+
   // ✅ dados fictícios por tipo de veículo (motorista + infos)
   const vehicleMockData = useMemo(
     () => ({
@@ -120,7 +150,7 @@ export default function Transporte({ navigation }) {
   const [vehicleAccordionOpen, setVehicleAccordionOpen] = useState(false);
 
   // ✅ veículo selecionado
-  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+
   const selectedVehicleInfo = selectedVehicleId
     ? vehicleMockData[selectedVehicleId]
     : null;
@@ -221,6 +251,10 @@ export default function Transporte({ navigation }) {
         Alert.alert("Erro", "Veículo selecionado inválido.");
         return;
       }
+      if (!selectedTime) {
+        Alert.alert("Atenção", "Selecione um horário disponível.");
+        return;
+      }
 
       const payload = {
         fromAddress: userAddress || "",
@@ -235,6 +269,10 @@ export default function Transporte({ navigation }) {
           veiculo: info.vehicleName,
           motorista: info.driverName,
           placa: info.plate,
+        },
+        schedule: {
+          selectedTime,
+          availableTimes,
         },
         createdAtMs: Date.now(),
       };
@@ -695,6 +733,125 @@ export default function Transporte({ navigation }) {
                 </RowBetween>
               </CardBody>
             </Card>
+
+            {/* ✅ Accordion - Horários disponíveis (só aparece após escolher veículo) */}
+            {selectedVehicleInfo ? (
+              <View style={{ marginTop: 0, marginBottom: 12 }}>
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => setTimeAccordionOpen((v) => !v)}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    borderRadius: 12,
+                    padding: 12,
+                    backgroundColor: theme.colors.card || theme.colors.purple,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={18}
+                      color={theme.colors.surface}
+                    />
+                    <Text
+                      style={{ color: theme.colors.surface, fontWeight: "900" }}
+                    >
+                      Veja horários disponíveis
+                    </Text>
+                  </View>
+
+                  <Ionicons
+                    name={timeAccordionOpen ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={theme.colors.surface}
+                  />
+                </TouchableOpacity>
+
+                {timeAccordionOpen ? (
+                  <View
+                    style={{
+                      marginTop: 10,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      backgroundColor: theme.colors.purpleclaro,
+                    }}
+                  >
+                    {/* rolagem vertical dentro do accordion */}
+                    <ScrollView
+                      style={{ maxHeight: 220 }}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {!availableTimes.length ? (
+                        <View style={{ padding: 14 }}>
+                          <Text style={{ color: theme.colors.textSecondary }}>
+                            Nenhum horário disponível no momento.
+                          </Text>
+                        </View>
+                      ) : (
+                        availableTimes.map((t) => {
+                          const selected = selectedTime === t;
+
+                          return (
+                            <TouchableOpacity
+                              key={t}
+                              activeOpacity={0.9}
+                              onPress={() =>
+                                setSelectedTime((prev) =>
+                                  prev === t ? null : t,
+                                )
+                              }
+                              style={{
+                                paddingVertical: 12,
+                                paddingHorizontal: 12,
+                                borderBottomWidth: 1,
+                                borderBottomColor: theme.colors.border,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                backgroundColor: selected
+                                  ? theme.colors.purple + "12"
+                                  : "transparent",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: theme.colors.surface,
+                                  fontWeight: "900",
+                                }}
+                              >
+                                {t}
+                              </Text>
+
+                              <Ionicons
+                                name={
+                                  selected
+                                    ? "checkmark-circle"
+                                    : "ellipse-outline"
+                                }
+                                size={20}
+                                color={theme.colors.cinzaclaro}
+                              />
+                            </TouchableOpacity>
+                          );
+                        })
+                      )}
+                    </ScrollView>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
           </View>
         ) : null}
 

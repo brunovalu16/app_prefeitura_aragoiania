@@ -56,6 +56,8 @@ export default function Replyiluminacao({ navigation, route }) {
   const { requestId } = route?.params || {};
   const [data, setData] = useState(null);
 
+  const [didInit, setDidInit] = useState(false);
+
   // ✅ controle de status (admin)
   const [draftStatus, setDraftStatus] = useState("execucao");
   const [savingStatus, setSavingStatus] = useState(false);
@@ -84,13 +86,31 @@ export default function Replyiluminacao({ navigation, route }) {
   const canEditPendente = isAdmin && String(draftStatus) === "pendente";
   const canEditExecucao = isAdmin && String(draftStatus) === "execucao";
 
+  const currentStatus = String(data?.status || "execucao").toLowerCase();
+  const hasStatusChanged =
+    String(draftStatus || "").toLowerCase() !== currentStatus;
+
+  const hasNotesChanged =
+    String(noteAnalise || "") !== String(data?.noteAnalise || "") ||
+    String(notePendente || "") !== String(data?.notePendente || "") ||
+    String(noteExecucao || "") !== String(data?.noteExecucao || "");
+
+  const canSave = isAdmin && (hasStatusChanged || hasNotesChanged);
+
   // ✅ quando carrega dado, sincroniza status e notas
+
   useEffect(() => {
-    setDraftStatus(String(data?.status || "analise").toLowerCase());
-    setNoteAnalise(String(data?.noteAnalise || ""));
-    setNotePendente(String(data?.notePendente || ""));
-    setNoteExecucao(String(data?.noteExecucao || ""));
-  }, [data?.status, data?.noteAnalise, data?.notePendente, data?.noteExecucao]);
+    if (!data) return;
+
+    // ✅ só inicializa 1x (pra não “pisar” no que o admin está editando)
+    if (!didInit) {
+      setDraftStatus(String(data?.status || "analise").toLowerCase());
+      setNoteAnalise(String(data?.noteAnalise || ""));
+      setNotePendente(String(data?.notePendente || ""));
+      setNoteExecucao(String(data?.noteExecucao || ""));
+      setDidInit(true);
+    }
+  }, [data, didInit]);
 
   function openPreview(list, index = 0) {
     const safeList = Array.isArray(list) ? list.filter(Boolean) : [];
@@ -214,6 +234,7 @@ export default function Replyiluminacao({ navigation, route }) {
   const MAX_PROCESS_PHOTOS = 5;
   const canAddProcessPhoto =
     processImages.length + pendingProcessThumbs.length < MAX_PROCESS_PHOTOS;
+  const canUploadProcessPhotos = isAdmin && canAddProcessPhoto;
 
   async function ensureCameraPermission() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -470,18 +491,43 @@ export default function Replyiluminacao({ navigation, route }) {
 
           <ActionRow>
             <SmallAction
-              onPress={takePhoto}
-              disabled={!canAddProcessPhoto}
-              style={{ opacity: canAddProcessPhoto ? 1 : 0.5 }}
+              onPress={() => {
+                if (!isAdmin) {
+                  Alert.alert(
+                    "Acesso negado",
+                    "Somente o admin pode adicionar fotos do processo.",
+                  );
+                  return;
+                }
+                takePhoto();
+              }}
+              disabled={!canUploadProcessPhotos}
+              style={{ opacity: canUploadProcessPhotos ? 1 : 0.5 }}
             >
               <Ionicons name="camera-outline" size={15} color="#fff" />
               <SmallActionText>CÂMERA</SmallActionText>
             </SmallAction>
 
             <SmallAction
-              onPress={pickFromGallery}
-              disabled={!canAddProcessPhoto}
-              style={{ opacity: canAddProcessPhoto ? 1 : 0.5 }}
+              onPress={() => {
+                if (!isAdmin) {
+                  Alert.alert(
+                    "Acesso negado",
+                    "Somente o admin pode adicionar fotos do processo.",
+                  );
+                  return;
+                }
+                if (!canEditExecucao) {
+                  Alert.alert(
+                    "Atenção",
+                    "As fotos do processo só podem ser adicionadas na etapa EM EXECUÇÃO.",
+                  );
+                  return;
+                }
+                pickFromGallery();
+              }}
+              disabled={!canUploadProcessPhotos}
+              style={{ opacity: canUploadProcessPhotos ? 1 : 0.5 }}
             >
               <Ionicons name="images-outline" size={15} color="#fff" />
               <SmallActionText>GALERIA</SmallActionText>
@@ -575,7 +621,12 @@ export default function Replyiluminacao({ navigation, route }) {
           <ProgressBarStatus
             status={draftStatus}
             isAdmin={isAdmin}
-            onChangeStatus={setDraftStatus}
+            onChangeStatus={(nextStatus) => {
+              // 🔒 admin apenas altera estado local
+              if (!isAdmin) return;
+
+              setDraftStatus(String(nextStatus).toLowerCase());
+            }}
           />
 
           <Divider />
@@ -649,10 +700,7 @@ export default function Replyiluminacao({ navigation, route }) {
         {isAdmin && (
           <SaveStatusButton
             onPress={handleSaveStatus}
-            disabled={
-              savingStatus ||
-              String(draftStatus) === String(data?.status || "execucao")
-            }
+            disabled={savingStatus || !canSave}
           >
             {savingStatus ? (
               <ActivityIndicator color="#fff" />

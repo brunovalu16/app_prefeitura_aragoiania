@@ -616,7 +616,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                           gap: 10,
                         }}
                       >
-                        <View style={{ flex: 1 }}>
+                        <View style={{ marginTop: 6 }}>
                           <Text
                             style={{
                               color: theme.colors.text,
@@ -624,12 +624,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                             }}
                           >
                             Motorista:{" "}
-                            <Text
-                              style={{
-                                color: theme.colors.text,
-                                fontWeight: "700",
-                              }}
-                            >
+                            <Text style={{ fontWeight: "700" }}>
                               {transporteData?.provider?.motorista || "—"}
                             </Text>
                           </Text>
@@ -638,17 +633,26 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                             style={{
                               color: theme.colors.text,
                               fontWeight: "900",
-                              marginTop: 6,
+                              marginTop: 4,
                             }}
                           >
                             Placa:{" "}
-                            <Text
-                              style={{
-                                color: theme.colors.text,
-                                fontWeight: "700",
-                              }}
-                            >
+                            <Text style={{ fontWeight: "700" }}>
                               {transporteData?.provider?.placa || "—"}
+                            </Text>
+                          </Text>
+
+                          {/* ✅ AGORA SIM, EM BAIXO */}
+                          <Text
+                            style={{
+                              color: theme.colors.text,
+                              fontWeight: "900",
+                              marginTop: 4,
+                            }}
+                          >
+                            Horário:{" "}
+                            <Text style={{ fontWeight: "700" }}>
+                              {transporteData?.schedule?.selectedTime || "—"}
                             </Text>
                           </Text>
                         </View>
