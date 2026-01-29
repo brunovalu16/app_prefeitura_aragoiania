@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
 import {
   Alert,
   Animated,
+  Dimensions,
   Easing,
   Modal,
   Pressable,
@@ -45,78 +47,261 @@ import {
   SelectedPillText,
 } from "./styles";
 
-export default function Exameseconsultas({ navigation }) {
-  function formatDateLabel(iso) {
-    // iso "YYYY-MM-DD"
-    const [y, m, d] = (iso || "").split("-").map((x) => Number(x));
-    if (!y || !m || !d) return iso;
+function formatDateLabel(iso) {
+  const [y, m, d] = (iso || "").split("-").map((x) => Number(x));
+  if (!y || !m || !d) return iso;
 
-    const dt = new Date(y, m - 1, d);
-    const week = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dt.getDay()];
-    return `${week} • ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+  const dt = new Date(y, m - 1, d);
+  const week = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dt.getDay()];
+  return `${week} • ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+}
+
+//==========================================================================================
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function toISODate(y, m, d) {
+  // m: 1..12
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+
+function monthNamePt(idx) {
+  return [
+    "JANEIRO",
+    "FEVEREIRO",
+    "MARÇO",
+    "ABRIL",
+    "MAIO",
+    "JUNHO",
+    "JULHO",
+    "AGOSTO",
+    "SETEMBRO",
+    "OUTUBRO",
+    "NOVEMBRO",
+    "DEZEMBRO",
+  ][idx];
+}
+
+function CalendarSimple({ dates, selectedDate, onSelectDate, theme }) {
+  // transforma array de datas em Set pra lookup rápido
+  const availableSet = useMemo(() => new Set(dates), [dates]);
+
+  // usa o mês da primeira data disponível
+  const baseDate = useMemo(() => {
+    const [y, m] = dates[0].split("-").map(Number);
+    return new Date(y, m - 1, 1);
+  }, [dates]);
+
+  const year = baseDate.getFullYear();
+  const monthIndex = baseDate.getMonth();
+
+  const monthLabel = [
+    "JANEIRO",
+    "FEVEREIRO",
+    "MARÇO",
+    "ABRIL",
+    "MAIO",
+    "JUNHO",
+    "JULHO",
+    "AGOSTO",
+    "SETEMBRO",
+    "OUTUBRO",
+    "NOVEMBRO",
+    "DEZEMBRO",
+  ][monthIndex];
+
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const firstDayWeek = new Date(year, monthIndex, 1).getDay(); // 0..6
+
+  const weekLabels = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+  // monta grid simples
+  const cells = [];
+  for (let i = 0; i < firstDayWeek; i++) {
+    cells.push({ empty: true, key: `e-${i}` });
   }
 
-  function DoctorScheduleSheet({
-    visible,
-    onClose,
-    doctorName,
-    theme,
-    availability,
-    selectedDate,
-    setSelectedDate,
-    selectedHour,
-    setSelectedHour,
-    onConfirm,
-  }) {
-    const [mounted, setMounted] = useState(false);
-    const translateY = useState(() => new Animated.Value(600))[0];
-    const backdrop = useState(() => new Animated.Value(0))[0];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(
+      d,
+    ).padStart(2, "0")}`;
 
-    useEffect(() => {
-      if (visible) {
-        setMounted(true);
-        Animated.parallel([
-          Animated.timing(backdrop, {
-            toValue: 1,
-            duration: 180,
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateY, {
-            toValue: 0,
-            duration: 220,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-        ]).start();
-      } else if (mounted) {
-        Animated.parallel([
-          Animated.timing(backdrop, {
-            toValue: 0,
-            duration: 160,
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateY, {
-            toValue: 600,
-            duration: 200,
-            easing: Easing.in(Easing.cubic),
-            useNativeDriver: true,
-          }),
-        ]).start(({ finished }) => {
-          if (finished) setMounted(false);
-        });
-      }
-    }, [visible]);
+    cells.push({
+      day: d,
+      iso,
+      available: availableSet.has(iso),
+      selected: selectedDate === iso,
+      key: iso,
+    });
+  }
 
-    if (!mounted) return null;
+  return (
+    <View style={{ marginBottom: 12 }}>
+      {/* TÍTULO DO MÊS */}
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: "900",
+          color: theme.colors.purple,
+          textAlign: "center",
+          marginBottom: 8,
+        }}
+      >
+        {monthLabel} {year}
+      </Text>
 
-    const dates = availability?.dates || [];
-    const hours =
-      (selectedDate && availability?.hoursByDate?.[selectedDate]) || [];
+      {/* DIAS DA SEMANA */}
+      <View style={{ flexDirection: "row", marginBottom: 6 }}>
+        {weekLabels.map((w, idx) => (
+          <View
+            key={`${w}-${idx}`}
+            style={{ width: "14.28%", alignItems: "center" }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "800",
+                color: theme.colors.textSecondary, // cinza
+              }}
+            >
+              {w}
+            </Text>
+          </View>
+        ))}
+      </View>
 
-    return (
-      <Modal transparent animationType="none" visible={mounted}>
-        {/* backdrop */}
-        <Pressable onPress={onClose} style={{ flex: 1 }}>
+      {/* GRID */}
+      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+        {cells.map((c) =>
+          c.empty ? (
+            <View key={c.key} style={{ width: "14.28%", height: 38 }} />
+          ) : (
+            <View key={c.key} style={{ width: "14.28%", padding: 3 }}>
+              <Pressable
+                disabled={!c.available}
+                onPress={() => onSelectDate(c.iso)}
+                style={{
+                  height: 36,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: c.selected
+                    ? theme.colors.purple
+                    : theme.colors.background,
+                  borderWidth: 1,
+                  borderColor: c.available
+                    ? theme.colors.purple
+                    : theme.colors.border,
+                  opacity: c.available ? 1 : 0.3,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "900",
+                    color: c.selected
+                      ? theme.colors.surface
+                      : c.available
+                        ? theme.colors.purple
+                        : theme.colors.textSecondary,
+                  }}
+                >
+                  {c.day}
+                </Text>
+              </Pressable>
+            </View>
+          ),
+        )}
+      </View>
+    </View>
+  );
+}
+//==========================================================================================
+
+const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
+  visible,
+  onClose,
+  doctorName,
+  theme,
+  availability,
+  selectedDate,
+  setSelectedDate,
+  selectedHour,
+  setSelectedHour,
+  onConfirm,
+}) {
+  const screenH = Dimensions.get("window").height;
+
+  const translateY = useRef(new Animated.Value(screenH)).current;
+  const backdrop = useRef(new Animated.Value(0)).current;
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+
+      // ✅ garante que abre sempre de baixo, mas só quando ABRE
+      translateY.setValue(screenH);
+      backdrop.setValue(0);
+
+      Animated.parallel([
+        Animated.timing(backdrop, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 1500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (mounted) {
+      Animated.parallel([
+        Animated.timing(backdrop, {
+          toValue: 0,
+          duration: 1500,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: screenH,
+          duration: 260,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) setMounted(false);
+      });
+    }
+  }, [visible, mounted, screenH, translateY, backdrop]);
+
+  const dates = useMemo(() => availability?.dates || [], [availability]);
+  const hours = useMemo(
+    () => (selectedDate ? availability?.hoursByDate?.[selectedDate] || [] : []),
+    [availability, selectedDate],
+  );
+
+  if (!mounted && !visible) return null;
+
+  return (
+    <Modal
+      transparent
+      animationType="none"
+      visible={visible || mounted}
+      statusBarTranslucent
+    >
+      {/* ✅ camada raiz (evita backdrop “roubar” clique do sheet) */}
+      <View style={{ flex: 1 }} pointerEvents="box-none">
+        {/* BACKDROP (fica atrás) */}
+        <Pressable
+          onPress={onClose}
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        >
           <Animated.View
             style={{
               flex: 1,
@@ -126,7 +311,7 @@ export default function Exameseconsultas({ navigation }) {
           />
         </Pressable>
 
-        {/* sheet */}
+        {/* SHEET */}
         <Animated.View
           style={{
             position: "absolute",
@@ -141,19 +326,14 @@ export default function Exameseconsultas({ navigation }) {
               backgroundColor: theme.colors.card || theme.colors.background,
               borderTopLeftRadius: 18,
               borderTopRightRadius: 18,
-              padding: 14,
+              padding: 16,
               paddingBottom: 18,
               borderTopWidth: 1,
               borderColor: theme.colors.border,
             }}
           >
             {/* topo */}
-            <View
-              style={{
-                alignItems: "center",
-                marginBottom: 10,
-              }}
-            >
+            <View style={{ alignItems: "center", marginBottom: 10 }}>
               <View
                 style={{
                   width: 46,
@@ -163,6 +343,7 @@ export default function Exameseconsultas({ navigation }) {
                   marginBottom: 10,
                 }}
               />
+
               <View
                 style={{
                   width: "100%",
@@ -172,24 +353,16 @@ export default function Exameseconsultas({ navigation }) {
                 }}
               >
                 <View style={{ flex: 1, paddingRight: 10 }}>
-                  <View
+                  <Text
                     style={{
-                      fontSize: 13,
-                      color: theme.colors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: "800",
+                      color: theme.colors.text,
                     }}
-                  />
-                  <View>
-                    <Text
-                      style={{
-                        fontSize: 15,
-                        fontWeight: "800",
-                        color: theme.colors.text,
-                      }}
-                      numberOfLines={2}
-                    >
-                      {doctorName || "Escolha a especialidade"}
-                    </Text>
-                  </View>
+                    numberOfLines={2}
+                  >
+                    {doctorName || "Escolha a especialidade"}
+                  </Text>
                 </View>
 
                 <Pressable
@@ -211,7 +384,6 @@ export default function Exameseconsultas({ navigation }) {
               </View>
             </View>
 
-            {/* CALENDÁRIO (clean) */}
             <Text
               style={{
                 fontSize: 13,
@@ -223,57 +395,22 @@ export default function Exameseconsultas({ navigation }) {
               Datas disponíveis
             </Text>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingBottom: 10 }}
-            >
-              {dates.length ? (
-                dates.map((iso) => {
-                  const active = selectedDate === iso;
-                  return (
-                    <Pressable
-                      key={iso}
-                      onPress={() => {
-                        setSelectedDate(iso);
-                        setSelectedHour(null);
-                      }}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 12,
-                        borderRadius: 12,
-                        backgroundColor: active
-                          ? theme.colors.purple
-                          : theme.colors.background,
-                        borderWidth: 1,
-                        borderColor: active
-                          ? theme.colors.purple
-                          : theme.colors.border,
-                        minWidth: 110,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: "800",
-                          color: active
-                            ? theme.colors.surface
-                            : theme.colors.text,
-                        }}
-                      >
-                        {formatDateLabel(iso)}
-                      </Text>
-                    </Pressable>
-                  );
-                })
-              ) : (
-                <Text style={{ color: theme.colors.textSecondary }}>
-                  Nenhuma data cadastrada.
-                </Text>
-              )}
-            </ScrollView>
+            {dates.length ? (
+              <CalendarSimple
+                dates={dates}
+                selectedDate={selectedDate}
+                onSelectDate={(iso) => {
+                  setSelectedDate(iso);
+                  setSelectedHour(null);
+                }}
+                theme={theme}
+              />
+            ) : (
+              <Text style={{ color: theme.colors.textSecondary }}>
+                Nenhuma data cadastrada.
+              </Text>
+            )}
 
-            {/* HORÁRIOS (aparece depois de escolher data) */}
             <Text
               style={{
                 fontSize: 13,
@@ -340,7 +477,6 @@ export default function Exameseconsultas({ navigation }) {
               disabled={!selectedDate || !selectedHour}
               onPress={() => {
                 if (!selectedDate || !selectedHour) return;
-
                 onConfirm?.({
                   doctorName,
                   date: selectedDate,
@@ -373,8 +509,20 @@ export default function Exameseconsultas({ navigation }) {
             </Pressable>
           </View>
         </Animated.View>
-      </Modal>
-    );
+      </View>
+    </Modal>
+  );
+});
+
+export default function Exameseconsultas({ navigation }) {
+  function formatDateLabel(iso) {
+    // iso "YYYY-MM-DD"
+    const [y, m, d] = (iso || "").split("-").map((x) => Number(x));
+    if (!y || !m || !d) return iso;
+
+    const dt = new Date(y, m - 1, d);
+    const week = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dt.getDay()];
+    return `${week} • ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
   }
 
   const theme = useTheme();
@@ -488,19 +636,16 @@ export default function Exameseconsultas({ navigation }) {
     // chave: `${doctor}|${date}|${hour}`
     return {
       "Dra. Ana Souza (Clínico Geral)|2026-01-20|08:00": [
-        "Clínica Vida Mais",
         "Policlínica Municipal",
       ],
       "Dra. Ana Souza (Clínico Geral)|2026-01-20|09:30": [
         "Centro Médico Araguaia",
       ],
       "Dra. Ana Souza (Clínico Geral)|2026-01-22|10:00": [
-        "Clínica Santa Luzia",
         "Clínica Saúde Total",
       ],
 
       "Dr. Paulo Lima (Cardiologista)|2026-01-21|07:30": [
-        "Centro Médico Primavera",
         "Centro Médico Araguaia",
       ],
       "Dr. Paulo Lima (Cardiologista)|2026-01-23|14:30": ["Clínica Vida Mais"],
@@ -511,7 +656,10 @@ export default function Exameseconsultas({ navigation }) {
     if (!medicoAgendado || !dataAgendada || !horaAgendada) return [];
 
     const key = `${medicoAgendado}|${dataAgendada}|${horaAgendada}`;
-    return clinicsByDoctorSlot[key] || [];
+    const list = clinicsByDoctorSlot[key] || [];
+
+    // ✅ regra: 1 médico no slot = 1 clínica
+    return list.length ? [list[0]] : [];
   }, [medicoAgendado, dataAgendada, horaAgendada, clinicsByDoctorSlot]);
 
   function openDoctorSheet(doctorName) {
@@ -1042,14 +1190,10 @@ export default function Exameseconsultas({ navigation }) {
         selectedHour={selectedHour}
         setSelectedHour={setSelectedHour}
         onConfirm={(payload) => {
-          // ✅ salva "confirmado"
           setMedicoAgendado(payload.doctorName);
           setDataAgendada(payload.date);
           setHoraAgendada(payload.hour);
-
-          // ✅ garante médico selecionado também
           setSelectedMedico(payload.doctorName);
-
           closeDoctorSheet();
         }}
       />
