@@ -1,6 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useState } from "react";
+
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../../services/firebase"; // ajuste o caminho se necessário
+
 import {
   ActivityIndicator,
   Alert,
@@ -39,31 +43,77 @@ import {
 } from "./styles";
 
 function parseDescricao(descricaoRaw) {
+  const raw = String(descricaoRaw || "");
+
+  // 1) Mantém linhas. Se vier tudo em uma linha (casos antigos),
+  //    injeta \n antes dos labels conhecidos para ajudar o parse.
+  const withLines = raw.includes("\n")
+    ? raw
+    : raw.replace(
+        /\s+(Especialidade|Médico|Medico|Clínica|Clinica|Exame|Procedimento|Data|Horário|Horario|Transporte horário|Transporte horario|Destino transporte|Motivo transporte|Veiculo transporte|Veículo transporte|Motorista transporte|Placa transporte|Transporte)\s*:/gi,
+        "\n$1:",
+      );
+
+  // 2) Normaliza chave (remove acento + lower)
+  const normalizeKey = (s) =>
+    String(s || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, ""); // remove acentos
+
   const map = {};
-  const lines = (descricaoRaw || "")
-    .split("\n")
+  const lines = withLines
+    .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
 
+  // 3) Parse linha a linha: "chave: valor"
   for (const line of lines) {
     const idx = line.indexOf(":");
     if (idx === -1) continue;
 
-    const k = line.slice(0, idx).trim().toLowerCase();
-    const v = line.slice(idx + 1).trim();
+    const k = normalizeKey(line.slice(0, idx));
+    const v = String(line.slice(idx + 1)).trim();
 
     if (k && v) map[k] = v;
   }
 
   return {
-    medico: map["médico"] || map["medico"] || "",
-    clinica: map["clínica"] || map["clinica"] || "",
+    medico: map["medico"] || "",
+    clinica: map["clinica"] || "",
     exame: map["exame"] || "",
     procedimento: map["procedimento"] || "",
     data: map["data"] || "",
-    horario: map["horário"] || map["horario"] || "",
-    lines,
+    horario: map["horario"] || "",
+
+    // ✅ transporte (texto)
+    transporte: map["transporte"] || "",
+    transporteHorario: map["transporte horario"] || "",
+    destinoTransporte: map["destino transporte"] || "",
+    motivoTransporte: map["motivo transporte"] || "",
+    motoristaTransporte: map["motorista transporte"] || "",
+    placaTransporte: map["placa transporte"] || "",
+    veiculoTransporte: map["veiculo transporte"] || "",
+
+    rawMap: map,
   };
+}
+
+async function getUserNomeByUid(uid) {
+  try {
+    if (!uid) return "";
+    const ref = doc(db, "users", uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return "";
+    const u = snap.data() || {};
+    return String(
+      u?.nome || u?.name || u?.displayName || u?.fullName || "",
+    ).trim();
+  } catch (e) {
+    console.log("❌ getUserNomeByUid:", e?.message);
+    return "";
+  }
 }
 
 export default function ReplyExameseconsultas({ navigation, route }) {
@@ -76,6 +126,17 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const [statusDraft, setStatusDraft] = useState(null);
 
   // =========================================================================
+  const [responsavelUid, setResponsavelUid] = useState("");
+  const [responsavelNome, setResponsavelNome] = useState("");
+  const [loadingResponsavel, setLoadingResponsavel] = useState(false);
+
+  const responsavelSalvoNome = String(
+    data?.responsavelLiberacao?.nome || "",
+  ).trim();
+  const responsavelSalvoUid = String(
+    data?.responsavelLiberacao?.uid || "",
+  ).trim();
+  const shouldShowResponsavelToUser = !!responsavelSalvoNome; // usuário só vê se admin salvou
 
   const [parecerOpen, setParecerOpen] = useState(false);
   const [parecerDraft, setParecerDraft] = useState(null); // analise|pendente|recusado|liberado|concluido
@@ -92,16 +153,48 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     [],
   );
 
-  // ✅ auth/admin (agora suporta adminsaude@..., adminiluminacao@..., etc)
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadResponsavel() {
+      try {
+        if (!canAdminEdit) return;
+
+        setLoadingResponsavel(true);
+
+        const uid = auth.currentUser?.uid || (await getAuthUserId());
+        const nomeFromAuth = String(auth.currentUser?.displayName || "").trim();
+
+        let nome = nomeFromAuth;
+        if (!nome) {
+          nome = await getUserNomeByUid(uid); // ✅ busca no users/{uid}
+        }
+
+        if (!mounted) return;
+
+        setResponsavelUid(uid || "");
+        setResponsavelNome(String(nome || "").trim());
+      } finally {
+        if (mounted) setLoadingResponsavel(false);
+      }
+    }
+
+    loadResponsavel();
+    return () => {
+      mounted = false;
+    };
+  }, [canAdminEdit]);
+
+  // ✅ auth/admin
   const auth = getAuth();
   const userEmail = (auth.currentUser?.email || "").toLowerCase();
   const adminScope = getAdminScopeByEmail(userEmail);
   const isAdmin = !!adminScope;
 
-  // ✅ (RECOMENDADO) garante que só admin de SAÚDE edite essa tela
+  // ✅ garante que só admin de SAÚDE edite essa tela
   const canEditThisArea = useMemo(() => {
     const areaIds = adminScope?.areaIds || [];
-    return areaIds.includes("saude"); // se seu id for outro, ajusta aqui
+    return areaIds.includes("saude");
   }, [adminScope]);
 
   const canAdminEdit = isAdmin && canEditThisArea;
@@ -113,9 +206,14 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     setJustificativaDraft(String(data?.justificativa || ""));
   }, [data]);
 
-  const saudeData = data?.saudeData || null;
+  const saudeData = data?.saudeData || data?.data || null;
 
-  const transporteData = data?.transporteData || null;
+  const transporteData =
+    saudeData?.transporteData ||
+    data?.transporteData ||
+    data?.data?.transporteData ||
+    parseTransporteFromDescricao(data?.data?.descricao || data?.descricao) ||
+    null;
 
   const parecerInfo = useMemo(() => {
     const v = String(parecerDraft || data?.parecer || "analise").toLowerCase();
@@ -129,6 +227,56 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   }, [parecerDraft, data?.parecer, parecerOptions, theme.colors.textSecondary]);
 
   const bolinhaColor = parecerInfo.color;
+
+  function parseTransporteFromDescricao(descricaoRaw) {
+    const raw = String(descricaoRaw || "");
+
+    // tenta pegar:
+    // Transporte: X
+    // Transporte horário: HH:MM
+    // Destino transporte: Y
+    // Motivo transporte: Z
+    const tipo =
+      raw
+        .match(/Transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i)?.[1]
+        ?.trim() || "";
+
+    const horario =
+      raw.match(/Transporte horário:\s*([0-9]{2}:[0-9]{2})/i)?.[1]?.trim() ||
+      "";
+
+    const destino =
+      raw
+        .match(
+          /Destino transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i,
+        )?.[1]
+        ?.trim() || "";
+
+    const motivo =
+      raw
+        .match(
+          /Motivo transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i,
+        )?.[1]
+        ?.trim() || "";
+
+    if (!tipo && !horario && !destino && !motivo) return null;
+
+    return {
+      provider: {
+        // como no texto não vem motorista/placa, a gente só preenche o que tem
+        veiculo: tipo || "—",
+        nome: tipo || "—",
+        label: tipo || "Transporte",
+        motorista: "",
+        placa: "",
+      },
+      schedule: {
+        selectedTime: horario || "",
+      },
+      toAddress: destino || "",
+      reason: motivo || "",
+    };
+  }
 
   // =========================================================================
 
@@ -170,22 +318,41 @@ export default function ReplyExameseconsultas({ navigation, route }) {
       const parecerLower = String(parecerDraft || "").toLowerCase();
       const isConcluido = parecerLower === "concluido";
 
-      const userId = auth.currentUser?.uid || (await getAuthUserId());
+      // ✅ UID do admin logado
+      // ✅ UID do admin logado
+      const uid =
+        responsavelUid || auth.currentUser?.uid || (await getAuthUserId());
+
+      // ✅ Nome do responsável (preferência: users/{uid})
+      const nome = String(responsavelNome || "").trim();
+
+      // ✅ REGRA: admin só salva se o nome realmente estiver aparecendo
+      if (!uid || !nome) {
+        Alert.alert(
+          "Atenção",
+          "Não foi possível identificar o responsável pela liberação. Verifique se o admin possui nome no cadastro (users).",
+        );
+        return;
+      }
 
       await updateRequestStatus({
         requestId,
-        userId,
+        userId: uid,
 
         parecer: parecerLower,
         justificativa: justificativaDraft,
 
-        // só atualiza status quando NÃO for "concluido"
         status: isConcluido
           ? null
           : String(statusDraft || "analise").toLowerCase(),
-
-        // concluiu = some do app
         isHidden: isConcluido,
+
+        responsavelLiberacao: {
+          uid,
+          nome,
+          area: "saude",
+          savedAtMs: Date.now(),
+        },
       });
 
       Alert.alert("Sucesso", "Alterações salvas!");
@@ -227,14 +394,89 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   );
   const parsed = useMemo(() => parseDescricao(descricao), [descricao]);
 
-  const medicoAgendado = saudeData?.medicoAgendado || "";
-  const dataAgendada = saudeData?.dataAgendada || "";
-  const horaAgendada = saudeData?.horaAgendada || "";
+  // ================= TRANSPORTE (fallback seguro) =================
+  const transporteTipo = String(
+    transporteData?.provider?.label ||
+      transporteData?.provider?.nome ||
+      parsed.transporte ||
+      "",
+  ).trim();
 
-  const medicoSelecionado = saudeData?.medicoSelecionado || parsed.medico || "";
+  const transporteMotoristaLabel = String(
+    transporteData?.provider?.motorista || parsed.motoristaTransporte || "",
+  ).trim();
+
+  const transportePlacaLabel = String(
+    transporteData?.provider?.placa || parsed.placaTransporte || "",
+  ).trim();
+
+  // ================================================================
+
+  // ✅ Fallbacks seguros: primeiro tenta transporteData, depois tenta descrição parseada
+  const transporteVeiculo = String(
+    // ✅ 1) PRIMEIRO: "Veículo transporte" vindo da descrição (print)
+    parsed.veiculoTransporte ||
+      // ✅ 2) depois: caso novo esteja salvo no transporteData de forma estruturada
+      transporteData?.provider?.veiculo ||
+      transporteData?.provider?.label ||
+      transporteData?.provider?.nome ||
+      // ✅ 3) legacy
+      transporteData?.vehicleName ||
+      // ✅ 4) último fallback: tipo de transporte
+      parsed.transporte ||
+      "",
+  ).trim();
+
+  const transporteMotorista = String(
+    transporteData?.provider?.motorista ||
+      transporteData?.driverName ||
+      parsed.motoristaTransporte ||
+      "",
+  ).trim();
+
+  const transportePlaca = String(
+    transporteData?.provider?.placa ||
+      transporteData?.plate ||
+      parsed.placaTransporte ||
+      "",
+  ).trim();
+
+  const transporteHorario = String(
+    transporteData?.schedule?.selectedTime || parsed.transporteHorario || "",
+  ).trim();
+
+  const transporteDestino = String(
+    transporteData?.toAddress || parsed.destinoTransporte || "",
+  ).trim();
+
+  const transporteMotivo = String(
+    transporteData?.reason || parsed.motivoTransporte || "",
+  ).trim();
+
+  // ✅ Só mostra a seção se tiver qualquer coisa
+  const shouldShowTransporte = !!(
+    transporteVeiculo ||
+    transporteMotorista ||
+    transportePlaca ||
+    transporteHorario ||
+    transporteDestino ||
+    transporteMotivo
+  );
+
+  const transporteToAddress =
+    String(transporteData?.toAddress || "").trim() ||
+    String(parsed.destinoTransporte || "").trim();
+
+  const transporteReason =
+    String(transporteData?.reason || "").trim() ||
+    String(parsed.motivoTransporte || "").trim();
+
+  // ===== Campos do resumo =====
   const clinicaSelecionada =
     saudeData?.clinicaSelecionada || parsed.clinica || "";
+
   const exameSelecionado = saudeData?.exameSelecionado || parsed.exame || "";
+
   const procedimentoSelecionado =
     saudeData?.procedimentoSelecionado || parsed.procedimento || "";
 
@@ -247,6 +489,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const requestTitle =
     data?.requestTitle || "SOLICITAÇÃO SAÚDE - EXAMES E CONSULTAS";
 
+  // ✅ statusInfo (necessário pro draftInfo)
   const statusInfo = useMemo(() => {
     const current = String(
       statusDraft || data?.status || "analise",
@@ -268,25 +511,44 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     return statusOptions.find((o) => o.value === v) || statusInfo;
   }, [statusDraft, statusInfo, statusOptions]);
 
-  const medicoLabel = useMemo(() => {
-    if (medicoAgendado && dataAgendada && horaAgendada) {
-      return `${String(medicoAgendado).split(" (")[0]} • ${dataAgendada} ${horaAgendada}`;
+  // ✅ ESPECIALIDADE: só 1 declaração (resolve o "Cannot redeclare...")
+  const especialidadeLabel = useMemo(() => {
+    const espAgendada = String(saudeData?.especialidadeAgendada || "").trim();
+    const dataAg = String(saudeData?.dataAgendada || "").trim();
+    const horaAg = String(saudeData?.horaAgendada || "").trim();
+
+    const espSelecionada = String(
+      saudeData?.especialidadeSelecionada ||
+        saudeData?.medicoSelecionado || // fallback legado
+        parsed.medico || // fallback texto antigo
+        "",
+    ).trim();
+
+    // 1) prioridade: agendada + data + hora
+    if (espAgendada && dataAg && horaAg) {
+      return `${espAgendada} • ${dataAg} ${horaAg}`;
     }
 
-    if (medicoSelecionado && parsed.data && parsed.horario) {
-      return `${String(medicoSelecionado).split(" (")[0]} • ${parsed.data} ${parsed.horario}`;
+    // 2) fallback: se descrição antiga tinha Data/Horário
+    if (espSelecionada && parsed.data && parsed.horario) {
+      return `${espSelecionada} • ${parsed.data} ${parsed.horario}`;
     }
 
-    if (medicoSelecionado) return String(medicoSelecionado).split(" (")[0];
+    // 3) só especialidade
+    if (espSelecionada) return espSelecionada;
+
+    // 4) último fallback: procurar "Especialidade:" nas linhas
+    const fromDescricao =
+      parsed?.lines?.find((l) =>
+        l.toLowerCase().startsWith("especialidade:"),
+      ) || "";
+
+    if (fromDescricao) {
+      return fromDescricao.split(":").slice(1).join(":").trim();
+    }
+
     return "";
-  }, [
-    medicoAgendado,
-    dataAgendada,
-    horaAgendada,
-    medicoSelecionado,
-    parsed.data,
-    parsed.horario,
-  ]);
+  }, [saudeData, parsed.medico, parsed.data, parsed.horario, parsed.lines]);
 
   return (
     <Container>
@@ -384,7 +646,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
                 <DividerSpace />
 
-                {/* MÉDICO */}
+                {/* ESPECIALIDADE */}
                 <OptionRow activeOpacity={1}>
                   <OptionLeft>
                     <View
@@ -400,12 +662,12 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                       size={18}
                       color={theme.colors.cinza}
                     />
-                    <OptionText>Médico</OptionText>
+                    <OptionText>Especialidades</OptionText>
                   </OptionLeft>
 
-                  {medicoLabel ? (
+                  {especialidadeLabel ? (
                     <SelectedPill>
-                      <SelectedPillText>{medicoLabel}</SelectedPillText>
+                      <SelectedPillText>{especialidadeLabel}</SelectedPillText>
                     </SelectedPill>
                   ) : (
                     <Text style={{ color: theme.colors.textSecondary }}>—</Text>
@@ -502,7 +764,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                   )}
                 </OptionRow>
 
-                {transporteData ? (
+                {shouldShowTransporte ? (
                   <View style={{ marginTop: 12 }}>
                     <Text
                       style={{
@@ -576,9 +838,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                           marginBottom: 8,
                         }}
                       >
-                        {transporteData?.provider?.veiculo ||
-                          transporteData?.provider?.nome ||
-                          "—"}
+                        {transporteVeiculo || "—"}
                       </Text>
 
                       <View
@@ -586,6 +846,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                           flexDirection: "row",
                           alignItems: "center",
                           gap: 10,
+                          marginTop: 8,
                         }}
                       >
                         <Ionicons
@@ -608,15 +869,8 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         }}
                       />
 
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "flex-end",
-                          justifyContent: "space-between",
-                          gap: 10,
-                        }}
-                      >
-                        <View style={{ marginTop: 6 }}>
+                      <View style={{ marginTop: 6 }}>
+                        {transporteMotorista ? (
                           <Text
                             style={{
                               color: theme.colors.text,
@@ -625,10 +879,12 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                           >
                             Motorista:{" "}
                             <Text style={{ fontWeight: "700" }}>
-                              {transporteData?.provider?.motorista || "—"}
+                              {transporteMotorista}
                             </Text>
                           </Text>
+                        ) : null}
 
+                        {transportePlaca ? (
                           <Text
                             style={{
                               color: theme.colors.text,
@@ -638,11 +894,12 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                           >
                             Placa:{" "}
                             <Text style={{ fontWeight: "700" }}>
-                              {transporteData?.provider?.placa || "—"}
+                              {transportePlaca}
                             </Text>
                           </Text>
+                        ) : null}
 
-                          {/* ✅ AGORA SIM, EM BAIXO */}
+                        {transporteHorario ? (
                           <Text
                             style={{
                               color: theme.colors.text,
@@ -652,10 +909,40 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                           >
                             Horário:{" "}
                             <Text style={{ fontWeight: "700" }}>
-                              {transporteData?.schedule?.selectedTime || "—"}
+                              {transporteHorario}
                             </Text>
                           </Text>
-                        </View>
+                        ) : null}
+
+                        {transporteDestino ? (
+                          <Text
+                            style={{
+                              color: theme.colors.text,
+                              fontWeight: "900",
+                              marginTop: 4,
+                            }}
+                          >
+                            Destino:{" "}
+                            <Text style={{ fontWeight: "700" }}>
+                              {transporteDestino}
+                            </Text>
+                          </Text>
+                        ) : null}
+
+                        {transporteMotivo ? (
+                          <Text
+                            style={{
+                              color: theme.colors.text,
+                              fontWeight: "900",
+                              marginTop: 4,
+                            }}
+                          >
+                            Motivo:{" "}
+                            <Text style={{ fontWeight: "700" }}>
+                              {transporteMotivo}
+                            </Text>
+                          </Text>
+                        ) : null}
                       </View>
                     </View>
                   </View>
@@ -831,6 +1118,59 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         />
                       </View>
                     </View>
+
+                    <View style={{ marginTop: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "900",
+                          color: theme.colors.text,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Responsável pela liberação da solicitação
+                      </Text>
+
+                      <View
+                        style={{
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          borderRadius: 12,
+                          backgroundColor: theme.colors.background,
+                          paddingHorizontal: 12,
+                          paddingVertical: 12,
+                        }}
+                      >
+                        {loadingResponsavel ? (
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontWeight: "700",
+                            }}
+                          >
+                            Carregando responsável...
+                          </Text>
+                        ) : responsavelNome ? (
+                          <Text
+                            style={{
+                              color: theme.colors.text,
+                              fontWeight: "900",
+                            }}
+                          >
+                            {responsavelNome}
+                          </Text>
+                        ) : (
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontWeight: "700",
+                            }}
+                          >
+                            Nome não encontrado no cadastro.
+                          </Text>
+                        )}
+                      </View>
+                    </View>
                   </View>
                 ) : null}
 
@@ -864,6 +1204,41 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         {String(data?.justificativa || "")}
                       </Text>
                     </View>
+
+                    {!canAdminEdit && shouldShowResponsavelToUser ? (
+                      <View style={{ marginTop: 12 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "900",
+                            color: theme.colors.text,
+                            marginBottom: 8,
+                          }}
+                        >
+                          Responsável pela liberação da solicitação
+                        </Text>
+
+                        <View
+                          style={{
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                            borderRadius: 12,
+                            backgroundColor: theme.colors.background,
+                            paddingHorizontal: 12,
+                            paddingVertical: 12,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: theme.colors.text,
+                              fontWeight: "900",
+                            }}
+                          >
+                            {responsavelSalvoNome}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
                 ) : null}
 

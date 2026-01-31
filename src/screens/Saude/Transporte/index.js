@@ -201,12 +201,26 @@ export default function Transporte({ navigation }) {
 
         const onlySaude = all
           .filter((r) => r?.areaId === "saude")
-          .filter((r) => r?.isHidden !== true);
+          .filter((r) => r?.isHidden !== true)
+          // ✅ NÃO mostrar solicitações que já têm Transporte2 vinculado (salvo no texto)
+          .filter((r) => {
+            const desc = String(r?.data?.descricao || r?.descricao || "");
+
+            const hasTransportInText =
+              /veiculo\s+transporte\s*:/i.test(desc) ||
+              /motorista\s+transporte\s*:/i.test(desc) ||
+              /placa\s+transporte\s*:/i.test(desc) ||
+              /transporte\s+hor[aá]rio\s*:/i.test(desc) ||
+              /destino\s+transporte\s*:/i.test(desc) ||
+              /motivo\s+transporte\s*:/i.test(desc);
+
+            return !hasTransportInText;
+          });
 
         setHealthRequests(onlySaude);
         setLoadingRequests(false);
 
-        // se a request selecionada sumiu, limpa
+        // se a request selecionada sumiu (ou foi filtrada), limpa
         if (
           selectedRequestId &&
           !onlySaude.some((r) => r.id === selectedRequestId)
@@ -459,7 +473,7 @@ export default function Transporte({ navigation }) {
                 </View>
               ) : !healthRequests.length ? (
                 <View style={{ padding: 14 }}>
-                  <Text style={{ color: theme.colors.textSecondary }}>
+                  <Text style={{ color: theme.colors.surface }}>
                     Você ainda não tem solicitações de Saúde.
                   </Text>
                 </View>

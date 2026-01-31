@@ -139,7 +139,7 @@ export default function Transporte2({ navigation, route }) {
   const [reason, setReason] = useState("");
 
   // ✅ solicitações SAÚDE (accordion)
-  const [accordionOpen, setAccordionOpen] = useState(false);
+  const [accordionOpen] = useState(false);
   const [healthRequests, setHealthRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
@@ -266,23 +266,41 @@ export default function Transporte2({ navigation, route }) {
       }
 
       const payload = {
+        // endereços
         fromAddress: userAddress || "",
         toAddress: String(toAddress || "").trim(),
+
+        // motivo do transporte
         reason: String(reason || "").trim(),
+
+        // 🔑 infos principais (nível raiz – facilita leitura no Reply)
+        vehicleType: selectedVehicleId,
+        vehicleLabel:
+          vehicleOptions.find((v) => v.id === selectedVehicleId)?.label ||
+          "Veículo",
+        vehicleName: info.vehicleName || "",
+        driverName: info.driverName || "",
+        plate: info.plate || "",
+
+        // 🚗 provider (estrutura principal)
         provider: {
           id: selectedVehicleId,
           tipo: selectedVehicleId,
           label:
             vehicleOptions.find((v) => v.id === selectedVehicleId)?.label ||
             "Veículo",
-          veiculo: info.vehicleName,
-          motorista: info.driverName,
-          placa: info.plate,
+          veiculo: info.vehicleName || "",
+          motorista: info.driverName || "",
+          placa: info.plate || "",
         },
+
+        // ⏰ agendamento
         schedule: {
           selectedTime,
           availableTimes,
         },
+
+        // metadata
         createdAtMs: Date.now(),
       };
 
@@ -423,41 +441,6 @@ export default function Transporte2({ navigation, route }) {
 
         {/* ✅ Accordion - Minhas solicitações de Saúde */}
         <View style={{ marginTop: 12, marginBottom: 12 }}>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => setAccordionOpen((v) => !v)}
-            style={{
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: 12,
-              padding: 12,
-              backgroundColor: theme.colors.card || theme.colors.purple,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-            >
-              <Ionicons
-                name="medkit-outline"
-                size={18}
-                color={theme.colors.surface}
-              />
-
-              <Text style={{ color: theme.colors.surface, fontWeight: "900" }}>
-                Esse transporte é para qual solicitação?
-              </Text>
-            </View>
-
-            <Ionicons
-              name={accordionOpen ? "chevron-up" : "chevron-down"}
-              size={18}
-              color={theme.colors.surface}
-            />
-          </TouchableOpacity>
-
           {accordionOpen ? (
             <View
               style={{

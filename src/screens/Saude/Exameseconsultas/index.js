@@ -648,11 +648,19 @@ export default function Exameseconsultas({ navigation, route }) {
     if (selectedProcedimento)
       lines.push(`Procedimento: ${selectedProcedimento}`);
 
+    // ================= TRANSPORTE =================
     if (transporte?.trim())
       lines.push(`Agendamento de Transporte: ${transporte.trim()}`);
-    if (transporteDraft?.provider?.label) {
-      lines.push(`Transporte: ${transporteDraft.provider.label}`);
-    }
+
+    const p = transporteDraft?.provider || null;
+
+    if (p?.label) lines.push(`Transporte: ${p.label}`);
+
+    // ✅ NOVO: salva no TEXTO também (pra você ver no Firestore)
+    if (p?.veiculo) lines.push(`Veículo transporte: ${p.veiculo}`);
+    if (p?.motorista) lines.push(`Motorista transporte: ${p.motorista}`);
+    if (p?.placa) lines.push(`Placa transporte: ${p.placa}`);
+
     if (transporteDraft?.schedule?.selectedTime) {
       lines.push(
         `Transporte horário: ${transporteDraft.schedule.selectedTime}`,
