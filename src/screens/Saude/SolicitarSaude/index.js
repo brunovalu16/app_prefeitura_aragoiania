@@ -24,16 +24,11 @@ export default function SolicitarSaude({ navigation }) {
       badge: "24h",
       onPress: () => navigation.navigate("SolicitarSaudeForm"),
     },
-    {
-      id: "reembolso",
-      label: "Solicitar reembolso",
-      icon: "cash-outline",
-      onPress: () => {},
-    },
+
     {
       id: "clinicas",
       label: "Exames e\nconsultas",
-      icon: "location-outline",
+      icon: "medkit-outline",
       onPress: () => navigation.navigate("Exameseconsultas"),
     },
     {
@@ -84,7 +79,12 @@ export default function SolicitarSaude({ navigation }) {
 
         <Grid>
           {items.map((item) => (
-            <Tile key={item.id} activeOpacity={0.9} onPress={item.onPress}>
+            <Tile
+              key={item.id}
+              activeOpacity={0.9}
+              onPress={item.onPress}
+              highlight={item.highlight}
+            >
               {item.badge ? (
                 <Badge>
                   <BadgeText>{item.badge}</BadgeText>
@@ -92,10 +92,18 @@ export default function SolicitarSaude({ navigation }) {
               ) : null}
 
               <TileIcon>
-                <TileIconIcon name={item.icon} />
+                <TileIconIcon
+                  name={item.icon}
+                  color={item.highlight ? "#fff" : undefined}
+                />
               </TileIcon>
 
-              <TileText numberOfLines={2}>{item.label}</TileText>
+              <TileText
+                numberOfLines={2}
+                style={{ color: item.highlight ? "#fff" : undefined }}
+              >
+                {item.label}
+              </TileText>
             </Tile>
           ))}
         </Grid>

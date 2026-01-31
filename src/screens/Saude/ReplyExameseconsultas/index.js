@@ -113,6 +113,8 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     setJustificativaDraft(String(data?.justificativa || ""));
   }, [data]);
 
+  const saudeData = data?.saudeData || null;
+
   const transporteData = data?.transporteData || null;
 
   const parecerInfo = useMemo(() => {
@@ -224,8 +226,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     [data?.descricao],
   );
   const parsed = useMemo(() => parseDescricao(descricao), [descricao]);
-
-  const saudeData = data?.saudeData || null;
 
   const medicoAgendado = saudeData?.medicoAgendado || "";
   const dataAgendada = saudeData?.dataAgendada || "";

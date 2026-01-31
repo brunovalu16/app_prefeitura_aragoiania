@@ -129,7 +129,7 @@ export const MiniIconBox = styled.View`
 export const MiniText = styled.Text`
   text-align: center;
   color: ${({ theme }) => theme.colors.cinza};
-  font-size: 10.5px;
+  font-size: 8px;
   font-weight: 700;
   line-height: 13px;
 `;
@@ -210,4 +210,13 @@ export const FieldInput = styled.TextInput.attrs(({ theme }) => ({
 
   color: ${({ theme }) => theme.colors.text};
   font-weight: 700;
+`;
+
+export const Tile = styled.TouchableOpacity`
+  background: ${({ highlight, theme }) =>
+    highlight ? theme.colors.purple : theme.colors.surface};
+  border-radius: 16px;
+  padding: 16px;
+  align-items: center;
+  justify-content: center;
 `;

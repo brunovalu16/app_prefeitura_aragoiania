@@ -34,7 +34,7 @@ import {
   SubmitText,
   SusInput,
   SusRow,
-  TopBack
+  TopBack,
 } from "./styles";
 
 export default function Cadastro({ navigation }) {
@@ -59,7 +59,8 @@ export default function Cadastro({ navigation }) {
   const SUS_TAMANHO = 5;
 
   // ✅ Libera o formulário quando SUS tiver 5 dígitos (qualquer número)
-  const susLiberado = sus.length === SUS_TAMANHO;
+  const SUS_MASTER = "00000";
+  const susLiberado = sus === SUS_MASTER;
 
   // 1º Nome
   const [nome, setNome] = useState("");
@@ -280,7 +281,10 @@ export default function Cadastro({ navigation }) {
 
     // ✅ regra nova: só exige 5 dígitos
     if (!susLiberado) {
-      Alert.alert("SUS", "Digite um número de SUS com 5 dígitos.");
+      Alert.alert(
+        "SUS",
+        "Cadastro bloqueado. Digite um número da região de Aragoiania para liberar.",
+      );
       return;
     }
 

@@ -2,7 +2,7 @@ import { styled } from "styled-components/native";
 
 export const BigCarousel = styled.View`
   margin-top: 8px;
-  margin-bottom: 10;
+  margin-bottom: 10px;
 `;
 
 export const DotsRow = styled.View`

@@ -1,12 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useEffect, useMemo, useRef, useState } from "react";
-
 import {
   ActivityIndicator,
-  Animated,
-  Dimensions,
-  Easing,
   FlatList,
   Keyboard,
   Modal,
@@ -49,37 +45,6 @@ export default function MapModal({ visible, onClose, onSelectLocation }) {
   const [sessionToken, setSessionToken] = useState(String(Date.now()));
 
   const PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY;
-
-  //===============================================================
-
-  const screenH = Dimensions.get("window").height;
-
-  const translateY = useRef(new Animated.Value(screenH)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!visible) return;
-
-    translateY.setValue(screenH); // ✅ começa realmente fora da tela
-    backdropOpacity.setValue(0);
-
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 1500,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 1500, // ✅ aqui você controla (900~1400 fica bom)
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [visible, screenH, translateY, backdropOpacity]);
-
-  //===================================================================
 
   const initialRegion = useMemo(
     () => ({
@@ -365,126 +330,112 @@ export default function MapModal({ visible, onClose, onSelectLocation }) {
   }, [PLACES_KEY]);
 
   return (
-    <Modal visible={!!visible} animationType="none" transparent>
+    <Modal visible={!!visible} animationType="slide" transparent>
       <Backdrop>
-        {/* BACKDROP */}
-        <Pressable style={{ flex: 1 }} onPress={onClose}>
-          <Animated.View style={{ flex: 1, opacity: backdropOpacity }} />
-        </Pressable>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
 
-        {/* SHEET (ANIMADO) */}
-        <Animated.View
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            transform: [{ translateY }],
-          }}
-        >
-          <Box style={{ height: screenH * 0.85 }}>
-            <Header>
-              <HeaderTitle>Selecionar localização</HeaderTitle>
+        <Box>
+          <Header>
+            <HeaderTitle>Selecionar localização</HeaderTitle>
 
-              <CloseBtn onPress={onClose} disabled={busy}>
-                <Ionicons name="close" size={22} color={theme.colors.text} />
-              </CloseBtn>
-            </Header>
+            <CloseBtn onPress={onClose} disabled={busy}>
+              <Ionicons name="close" size={22} color={theme.colors.text} />
+            </CloseBtn>
+          </Header>
 
-            <SearchRow>
-              <SearchInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Digite um endereço (rua, bairro, cidade...)"
-                placeholderTextColor="#9CA3AF"
-                returnKeyType="search"
-                onSubmitEditing={handleSearch}
-                editable={!busy}
-              />
+          <SearchRow>
+            <SearchInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Digite um endereço (rua, bairro, cidade...)"
+              placeholderTextColor="#9CA3AF"
+              returnKeyType="search"
+              onSubmitEditing={handleSearch}
+              editable={!busy}
+            />
 
-              <SearchAction onPress={handleSearch} disabled={busy}>
-                {searching ? (
-                  <ActivityIndicator />
-                ) : (
-                  <SearchActionText>BUSCAR</SearchActionText>
-                )}
-              </SearchAction>
-            </SearchRow>
-
-            {!!suggestions.length && (
-              <FlatList
-                data={suggestions}
-                keyExtractor={(item) => item.placeId}
-                keyboardShouldPersistTaps="handled"
-                style={{ maxHeight: 180, paddingHorizontal: 14 }}
-                renderItem={({ item }) => (
-                  <Pressable
-                    onPress={() => selectSuggestion(item)}
-                    style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 10,
-                      marginBottom: 8,
-                      backgroundColor: theme.colors.card,
-                    }}
-                  >
-                    <AddressText numberOfLines={2}>
-                      {item.description}
-                    </AddressText>
-                  </Pressable>
-                )}
-              />
-            )}
-
-            {!!address && (
-              <AddressLine>
-                <Ionicons
-                  name="location-outline"
-                  size={16}
-                  color={theme.colors.purple}
-                />
-                <AddressText numberOfLines={2}>{address}</AddressText>
-              </AddressLine>
-            )}
-
-            <MapBox style={{ flex: 1 }}>
-              {!region && loading ? (
-                <ActivityIndicator style={{ marginTop: 24 }} />
-              ) : (
-                <>
-                  <MapView
-                    ref={mapRef}
-                    provider={PROVIDER_GOOGLE}
-                    style={{ flex: 1 }}
-                    initialRegion={region || initialRegion}
-                    onRegionChangeComplete={(r) => setRegion(r)}
-                    onPress={handleMapPress}
-                    showsUserLocation
-                    showsMyLocationButton
-                  />
-
-                  <PinCenter pointerEvents="none">
-                    <Ionicons
-                      name="location-sharp"
-                      size={34}
-                      color={theme.colors.purple}
-                    />
-                  </PinCenter>
-                </>
-              )}
-            </MapBox>
-
-            <PrimaryBtn onPress={handleConfirm} disabled={busy || !region}>
-              {confirming ? (
+            <SearchAction onPress={handleSearch} disabled={busy}>
+              {searching ? (
                 <ActivityIndicator />
               ) : (
-                <PrimaryBtnText>
-                  {busy ? "AGUARDE..." : "CONFIRMAR LOCAL"}
-                </PrimaryBtnText>
+                <SearchActionText>BUSCAR</SearchActionText>
               )}
-            </PrimaryBtn>
-          </Box>
-        </Animated.View>
+            </SearchAction>
+          </SearchRow>
+
+          {!!suggestions.length && (
+            <FlatList
+              data={suggestions}
+              keyExtractor={(item) => item.placeId}
+              keyboardShouldPersistTaps="handled"
+              style={{ maxHeight: 180, paddingHorizontal: 14 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => selectSuggestion(item)}
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    marginBottom: 8,
+                    backgroundColor: theme.colors.card,
+                  }}
+                >
+                  <AddressText numberOfLines={2}>
+                    {item.description}
+                  </AddressText>
+                </Pressable>
+              )}
+            />
+          )}
+
+          {!!address && (
+            <AddressLine>
+              <Ionicons
+                name="location-outline"
+                size={16}
+                color={theme.colors.purple}
+              />
+              <AddressText numberOfLines={2}>{address}</AddressText>
+            </AddressLine>
+          )}
+
+          <MapBox>
+            {!region && loading ? (
+              <ActivityIndicator style={{ marginTop: 24 }} />
+            ) : (
+              <>
+                <MapView
+                  ref={mapRef}
+                  provider={PROVIDER_GOOGLE}
+                  style={{ flex: 1 }}
+                  initialRegion={region || initialRegion}
+                  onRegionChangeComplete={(r) => setRegion(r)}
+                  onPress={handleMapPress}
+                  showsUserLocation
+                  showsMyLocationButton
+                />
+
+                <PinCenter pointerEvents="none">
+                  <Ionicons
+                    name="location-sharp"
+                    size={34}
+                    color={theme.colors.purple}
+                  />
+                </PinCenter>
+              </>
+            )}
+          </MapBox>
+
+          <PrimaryBtn onPress={handleConfirm} disabled={busy || !region}>
+            {confirming ? (
+              <ActivityIndicator />
+            ) : (
+              <PrimaryBtnText>
+                {busy ? "AGUARDE..." : "CONFIRMAR LOCAL"}
+              </PrimaryBtnText>
+            )}
+          </PrimaryBtn>
+        </Box>
       </Backdrop>
     </Modal>
   );

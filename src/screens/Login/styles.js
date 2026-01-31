@@ -27,7 +27,7 @@ export const RowLogin = styled.View`
 export const LogoImage = styled.Image.attrs({
   resizeMode: "contain",
 })`
-  width: 230px;
+  width: 200px;
   padding-top: 145%;
 `;
 
@@ -77,6 +77,7 @@ export const Label = styled.Text`
   margin-top: 7px;
   margin-bottom: 1px;
   opacity: 0.9;
+  margin-top: -13;
 `;
 
 export const InputLine = styled.TextInput`
@@ -85,18 +86,21 @@ export const InputLine = styled.TextInput`
   border-bottom-width: 1px;
   border-bottom-color: rgba(255, 255, 255, 0.6);
   padding-bottom: 6px;
+  margin-top: -5;
 `;
 
 export const RowLoginText = styled.Text`
   color: ${({ theme }) => theme.colors.surface};
   opacity: 0.9;
   font-size: ${({ theme }) => theme.font.md}px;
+  margin-top: -90;
 `;
 
 export const RowLoginDivider = styled.Text`
   color: ${({ theme }) => theme.colors.surface};
   opacity: 0.6;
   font-size: ${({ theme }) => theme.font.xl}px;
+  margin-top: -120;
 `;
 
 export const RowLoginLink = styled.Text`
@@ -104,10 +108,12 @@ export const RowLoginLink = styled.Text`
   font-weight: 800;
   text-decoration-line: underline;
   font-size: ${({ theme }) => theme.font.xl}px;
+  margin-top: -120;
 `;
 
 export const Link = styled.TouchableOpacity`
   padding: 2px;
+  margin-top: -90;
 `;
 
 export const LinkText = styled.Text`

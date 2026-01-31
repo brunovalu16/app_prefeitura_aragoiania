@@ -36,7 +36,7 @@ export const HeaderTitle = styled.Text`
 
 export const Body = styled.View`
   flex: 1;
-  margin-top: -34px;
+  margin-top: -10px;
   padding: 0 14px;
 `;
 

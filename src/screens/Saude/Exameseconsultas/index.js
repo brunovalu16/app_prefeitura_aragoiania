@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
+import { useFocusEffect } from "@react-navigation/native";
+
 import {
   Alert,
   Animated,
@@ -61,35 +63,12 @@ function pad2(n) {
   return String(n).padStart(2, "0");
 }
 
-function toISODate(y, m, d) {
-  // m: 1..12
-  return `${y}-${pad2(m)}-${pad2(d)}`;
-}
-
-function monthNamePt(idx) {
-  return [
-    "JANEIRO",
-    "FEVEREIRO",
-    "MARÇO",
-    "ABRIL",
-    "MAIO",
-    "JUNHO",
-    "JULHO",
-    "AGOSTO",
-    "SETEMBRO",
-    "OUTUBRO",
-    "NOVEMBRO",
-    "DEZEMBRO",
-  ][idx];
-}
-
 function CalendarSimple({ dates, selectedDate, onSelectDate, theme }) {
-  // transforma array de datas em Set pra lookup rápido
   const availableSet = useMemo(() => new Set(dates), [dates]);
 
-  // usa o mês da primeira data disponível
   const baseDate = useMemo(() => {
-    const [y, m] = dates[0].split("-").map(Number);
+    const [y, m] = (dates?.[0] || "").split("-").map(Number);
+    if (!y || !m) return new Date();
     return new Date(y, m - 1, 1);
   }, [dates]);
 
@@ -116,17 +95,13 @@ function CalendarSimple({ dates, selectedDate, onSelectDate, theme }) {
 
   const weekLabels = ["D", "S", "T", "Q", "Q", "S", "S"];
 
-  // monta grid simples
   const cells = [];
   for (let i = 0; i < firstDayWeek; i++) {
     cells.push({ empty: true, key: `e-${i}` });
   }
 
   for (let d = 1; d <= daysInMonth; d++) {
-    const iso = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(
-      d,
-    ).padStart(2, "0")}`;
-
+    const iso = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     cells.push({
       day: d,
       iso,
@@ -138,7 +113,6 @@ function CalendarSimple({ dates, selectedDate, onSelectDate, theme }) {
 
   return (
     <View style={{ marginBottom: 12 }}>
-      {/* TÍTULO DO MÊS */}
       <Text
         style={{
           fontSize: 14,
@@ -151,7 +125,6 @@ function CalendarSimple({ dates, selectedDate, onSelectDate, theme }) {
         {monthLabel} {year}
       </Text>
 
-      {/* DIAS DA SEMANA */}
       <View style={{ flexDirection: "row", marginBottom: 6 }}>
         {weekLabels.map((w, idx) => (
           <View
@@ -162,7 +135,7 @@ function CalendarSimple({ dates, selectedDate, onSelectDate, theme }) {
               style={{
                 fontSize: 12,
                 fontWeight: "800",
-                color: theme.colors.textSecondary, // cinza
+                color: theme.colors.textSecondary,
               }}
             >
               {w}
@@ -171,7 +144,6 @@ function CalendarSimple({ dates, selectedDate, onSelectDate, theme }) {
         ))}
       </View>
 
-      {/* GRID */}
       <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
         {cells.map((c) =>
           c.empty ? (
@@ -222,7 +194,7 @@ function CalendarSimple({ dates, selectedDate, onSelectDate, theme }) {
 const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
   visible,
   onClose,
-  doctorName,
+  doctorName, // aqui agora é "especialidade"
   theme,
   availability,
   selectedDate,
@@ -242,20 +214,19 @@ const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
     if (visible) {
       setMounted(true);
 
-      // ✅ garante que abre sempre de baixo, mas só quando ABRE
       translateY.setValue(screenH);
       backdrop.setValue(0);
 
       Animated.parallel([
         Animated.timing(backdrop, {
           toValue: 1,
-          duration: 1500,
+          duration: 260,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: 0,
-          duration: 1500,
+          duration: 260,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -264,13 +235,13 @@ const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
       Animated.parallel([
         Animated.timing(backdrop, {
           toValue: 0,
-          duration: 1500,
+          duration: 200,
           easing: Easing.in(Easing.quad),
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: screenH,
-          duration: 260,
+          duration: 200,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -295,9 +266,7 @@ const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
       visible={visible || mounted}
       statusBarTranslucent
     >
-      {/* ✅ camada raiz (evita backdrop “roubar” clique do sheet) */}
       <View style={{ flex: 1 }} pointerEvents="box-none">
-        {/* BACKDROP (fica atrás) */}
         <Pressable
           onPress={onClose}
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
@@ -311,7 +280,6 @@ const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
           />
         </Pressable>
 
-        {/* SHEET */}
         <Animated.View
           style={{
             position: "absolute",
@@ -332,7 +300,6 @@ const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
               borderColor: theme.colors.border,
             }}
           >
-            {/* topo */}
             <View style={{ alignItems: "center", marginBottom: 10 }}>
               <View
                 style={{
@@ -514,68 +481,68 @@ const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
   );
 });
 
-export default function Exameseconsultas({ navigation }) {
-  function formatDateLabel(iso) {
-    // iso "YYYY-MM-DD"
-    const [y, m, d] = (iso || "").split("-").map((x) => Number(x));
-    if (!y || !m || !d) return iso;
-
-    const dt = new Date(y, m - 1, d);
-    const week = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dt.getDay()];
-    return `${week} • ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
-  }
-
+export default function Exameseconsultas({ navigation, route }) {
   const theme = useTheme();
+
+  const [transporteDraft, setTransporteDraft] = useState(null);
 
   const [transporte, setTransporte] = useState("");
 
-  const [openKey, setOpenKey] = useState(null); // "medicos" | "clinicas" | "exames" | "procedimentos"
+  const [openKey, setOpenKey] = useState(null); // "especialidades" | "clinicas" | "exames" | "procedimentos"
   const [loading, setLoading] = useState(false);
 
   const [successOpen, setSuccessOpen] = useState(false);
   const [successRequestId, setSuccessRequestId] = useState(null);
 
-  // ✅ seleção (1 por seção, simples e direto)
-  const [selectedMedico, setSelectedMedico] = useState(null);
+  // ✅ seleção
+  const [selectedEspecialidade, setSelectedEspecialidade] = useState(null);
   const [selectedClinica, setSelectedClinica] = useState(null);
   const [selectedExame, setSelectedExame] = useState(null);
   const [selectedProcedimento, setSelectedProcedimento] = useState(null);
 
+  // ✅ sheet
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [sheetDoctor, setSheetDoctor] = useState(null);
+  const [sheetEspecialidade, setSheetEspecialidade] = useState(null);
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedHour, setSelectedHour] = useState(null);
 
-  const [medicoAgendado, setMedicoAgendado] = useState(null);
+  // ✅ agendamento confirmado
+  const [especialidadeAgendada, setEspecialidadeAgendada] = useState(null);
   const [dataAgendada, setDataAgendada] = useState(null);
   const [horaAgendada, setHoraAgendada] = useState(null);
 
-  const [agModalOpen, setAgModalOpen] = useState(false);
+  useFocusEffect(
+    React.useCallback(() => {
+      const draft = route?.params?.transporteDraft;
+      if (draft) {
+        setTransporteDraft(draft);
 
-  const medicos = useMemo(
-    () => [
-      "Dra. Ana Souza (Clínico Geral)",
-      "Dr. Paulo Lima (Cardiologista)",
-      "Dra. Camila Rocha (Pediatra)",
-      "Dr. Bruno Martins (Ortopedista)",
-      "Dra. Fernanda Alves (Ginecologista)",
-      "Dr. Ricardo Nunes (Dermatologista)",
-      "Dra. Juliana Mota (Endocrinologista)",
-      "Dr. Felipe Barros (Neurologista)",
-    ],
-    [],
+        navigation.setParams({
+          transporteDraft: undefined,
+          transporteDraftAt: undefined,
+        });
+      }
+    }, [route?.params?.transporteDraftAt, navigation]),
   );
 
-  const clinicas = useMemo(
+  const especialidades = useMemo(
     () => [
-      "Clínica Vida Mais",
-      "Centro Médico Araguaia",
-      "Clínica Santa Luzia",
-      "Policlínica Municipal",
-      "Clínica Bem Estar",
-      "Clínica Saúde Total",
-      "Centro Médico Primavera",
+      "Clínica Médica",
+      "Pediatria",
+      "Ginecologia e Obstetrícia",
+      "Cardiologia",
+      "Ortopedia e Traumatologia",
+      "Dermatologia",
+      "Neurologia",
+      "Endocrinologia",
+      "Psiquiatria",
+      "Oftalmologia",
+      "Otorrinolaringologia",
+      "Urologia",
+      "Gastroenterologia",
+      "Pneumologia",
+      "Reumatologia",
     ],
     [],
   );
@@ -607,72 +574,58 @@ export default function Exameseconsultas({ navigation }) {
     [],
   );
 
-  const doctorAvailability = useMemo(() => {
-    // keys = nome do medico
+  const specialtyAvailability = useMemo(() => {
     return {
-      "Dra. Ana Souza (Clínico Geral)": {
-        dates: ["2026-01-20", "2026-01-22", "2026-01-25", "2026-01-28"],
+      "Clínica Médica": {
+        dates: ["2026-01-20", "2026-01-22", "2026-01-25"],
         hoursByDate: {
-          "2026-01-20": ["08:00", "09:30", "14:00", "16:30"],
-          "2026-01-22": ["10:00", "11:00", "15:00"],
-          "2026-01-25": ["08:30", "13:30", "17:00"],
-          "2026-01-28": ["09:00", "12:00", "16:00"],
+          "2026-01-20": ["08:00", "09:30", "14:00"],
+          "2026-01-22": ["10:00", "15:00"],
+          "2026-01-25": ["08:30", "13:30"],
         },
       },
-      "Dr. Paulo Lima (Cardiologista)": {
-        dates: ["2026-01-21", "2026-01-23", "2026-01-29"],
+      Pediatria: {
+        dates: ["2026-01-21", "2026-01-23"],
         hoursByDate: {
-          "2026-01-21": ["07:30", "09:00", "10:30"],
-          "2026-01-23": ["13:00", "14:30", "16:00"],
-          "2026-01-29": ["08:00", "11:00", "15:30"],
+          "2026-01-21": ["07:30", "09:00"],
+          "2026-01-23": ["13:00", "16:00"],
         },
       },
     };
   }, []);
 
-  //mockup clinicas
-
-  const clinicsByDoctorSlot = useMemo(() => {
-    // chave: `${doctor}|${date}|${hour}`
+  const clinicsBySpecialtySlot = useMemo(() => {
     return {
-      "Dra. Ana Souza (Clínico Geral)|2026-01-20|08:00": [
-        "Policlínica Municipal",
-      ],
-      "Dra. Ana Souza (Clínico Geral)|2026-01-20|09:30": [
-        "Centro Médico Araguaia",
-      ],
-      "Dra. Ana Souza (Clínico Geral)|2026-01-22|10:00": [
-        "Clínica Saúde Total",
-      ],
-
-      "Dr. Paulo Lima (Cardiologista)|2026-01-21|07:30": [
-        "Centro Médico Araguaia",
-      ],
-      "Dr. Paulo Lima (Cardiologista)|2026-01-23|14:30": ["Clínica Vida Mais"],
+      "Clínica Médica|2026-01-20|08:00": ["Policlínica Municipal"],
+      "Clínica Médica|2026-01-20|09:30": ["Centro Médico Araguaia"],
+      "Pediatria|2026-01-21|07:30": ["Centro Médico Araguaia"],
     };
   }, []);
 
   const clinicasFiltradas = useMemo(() => {
-    if (!medicoAgendado || !dataAgendada || !horaAgendada) return [];
+    if (!especialidadeAgendada || !dataAgendada || !horaAgendada) return [];
 
-    const key = `${medicoAgendado}|${dataAgendada}|${horaAgendada}`;
-    const list = clinicsByDoctorSlot[key] || [];
+    const key = `${especialidadeAgendada}|${dataAgendada}|${horaAgendada}`;
+    const list = clinicsBySpecialtySlot[key] || [];
 
-    // ✅ regra: 1 médico no slot = 1 clínica
+    // regra: 1 slot = 1 clínica
     return list.length ? [list[0]] : [];
-  }, [medicoAgendado, dataAgendada, horaAgendada, clinicsByDoctorSlot]);
+  }, [
+    especialidadeAgendada,
+    dataAgendada,
+    horaAgendada,
+    clinicsBySpecialtySlot,
+  ]);
 
-  function openDoctorSheet(doctorName) {
+  function openEspecialidadeSheet(especialidade) {
     setSelectedDate(null);
     setSelectedHour(null);
-
-    setSheetDoctor(doctorName);
+    setSheetEspecialidade(especialidade);
     setSheetOpen(true);
   }
 
-  function closeDoctorSheet() {
+  function closeEspecialidadeSheet() {
     setSheetOpen(false);
-    // mantém sheetDoctor se quiser mostrar animação fechando sem piscar
   }
 
   function toggle(key) {
@@ -682,16 +635,35 @@ export default function Exameseconsultas({ navigation }) {
   function buildDescricao() {
     const lines = [];
 
-    if (selectedMedico) lines.push(`Médico: ${selectedMedico}`);
+    if (selectedEspecialidade)
+      lines.push(`Especialidade: ${selectedEspecialidade}`);
+    if (especialidadeAgendada)
+      lines.push(`Especialidade: ${especialidadeAgendada}`);
+    if (dataAgendada)
+      lines.push(`Data: ${dataAgendada} (${formatDateLabel(dataAgendada)})`);
+    if (horaAgendada) lines.push(`Horário: ${horaAgendada}`);
+
     if (selectedClinica) lines.push(`Clínica: ${selectedClinica}`);
     if (selectedExame) lines.push(`Exame: ${selectedExame}`);
     if (selectedProcedimento)
       lines.push(`Procedimento: ${selectedProcedimento}`);
+
     if (transporte?.trim())
       lines.push(`Agendamento de Transporte: ${transporte.trim()}`);
-    if (medicoAgendado) lines.push(`Médico: ${medicoAgendado}`);
-    if (dataAgendada) lines.push(`Data: ${dataAgendada}`);
-    if (horaAgendada) lines.push(`Horário: ${horaAgendada}`);
+    if (transporteDraft?.provider?.label) {
+      lines.push(`Transporte: ${transporteDraft.provider.label}`);
+    }
+    if (transporteDraft?.schedule?.selectedTime) {
+      lines.push(
+        `Transporte horário: ${transporteDraft.schedule.selectedTime}`,
+      );
+    }
+    if (transporteDraft?.toAddress) {
+      lines.push(`Destino transporte: ${transporteDraft.toAddress}`);
+    }
+    if (transporteDraft?.reason) {
+      lines.push(`Motivo transporte: ${transporteDraft.reason}`);
+    }
 
     return lines.join("\n");
   }
@@ -699,33 +671,25 @@ export default function Exameseconsultas({ navigation }) {
   const descricaoFinal = buildDescricao();
   const canSave = !!descricaoFinal.trim() && !loading;
 
-  // FUNÇÃO QUE CRIA O OBJETO COM OS DADOS
-
   function buildSaudeData() {
     return {
-      // seleção principal
-      medicoSelecionado: selectedMedico || null,
+      especialidadeSelecionada: selectedEspecialidade || null,
       clinicaSelecionada: selectedClinica || null,
       exameSelecionado: selectedExame || null,
       procedimentoSelecionado: selectedProcedimento || null,
 
-      // agendamento confirmado (sheet)
-      medicoAgendado: medicoAgendado || null,
+      especialidadeAgendada: especialidadeAgendada || null,
       dataAgendada: dataAgendada || null,
       horaAgendada: horaAgendada || null,
 
-      // input
-      transporte: (transporte || "").trim() || null,
+      transporteData: transporteDraft || null, // ✅ AQUI
 
-      // info útil p/ auditoria/debug
       clinicasDisponiveisNoSlot: Array.isArray(clinicasFiltradas)
         ? clinicasFiltradas
         : [],
-
-      // para no futuro ligar com admin
       slotKey:
-        medicoAgendado && dataAgendada && horaAgendada
-          ? `${medicoAgendado}|${dataAgendada}|${horaAgendada}`
+        especialidadeAgendada && dataAgendada && horaAgendada
+          ? `${especialidadeAgendada}|${dataAgendada}|${horaAgendada}`
           : null,
     };
   }
@@ -750,21 +714,27 @@ export default function Exameseconsultas({ navigation }) {
       const auth = getAuth();
       const userEmail = (auth.currentUser?.email || "").trim().toLowerCase();
 
-      const saudeData = buildSaudeData();
+      // ✅ pega o draft mais recente direto do route (evita state atrasado)
+      const transporteDraftLatest =
+        route?.params?.transporteDraft || transporteDraft || null;
+
+      // ✅ monta saudeData garantindo o transporte
+      const saudeData = {
+        ...buildSaudeData(),
+        transporteData: transporteDraftLatest,
+      };
+
+      // ✅ se você também quer garantir o texto da descrição com transporte (opcional)
+      // (mantém sua buildDescricao atual, mas garante que transporte esteja refletido)
+      // const descricaoToSave = descricaoFinal; // mantendo como está
 
       const { requestId } = await createRequest({
         userId,
         userEmail,
         areaId: "saude",
         areaLabel: "SAÚDE",
-
-        // continua compatível com o seu Reply, etc
         descricao: descricaoFinal,
-
-        // ✅ NOVO: salva estruturado
         saudeData,
-
-        // mantendo compatibilidade com seu schema atual:
         enderecoPoste: "",
         numeroPoste: "",
         images: [],
@@ -774,7 +744,7 @@ export default function Exameseconsultas({ navigation }) {
       setSuccessRequestId(requestId);
       setSuccessOpen(true);
     } catch (e) {
-      console.log("❌ SAUDE handleSave:", e?.code, e?.message);
+      console.log("❌ SAUDE handleSave:", e?.code, e?.message, e);
       Alert.alert("Erro", "Não foi possível salvar sua solicitação.");
     } finally {
       setLoading(false);
@@ -783,9 +753,6 @@ export default function Exameseconsultas({ navigation }) {
 
   return (
     <Container>
-      {/* HEADER GRADIENTE */}
-
-      {/* ✅ ROLAGEM VERTICAL */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -818,37 +785,40 @@ export default function Exameseconsultas({ navigation }) {
           <Card>
             <SectionTitle>O que você quer encontrar?</SectionTitle>
 
-            {/* ================== MÉDICOS ================== */}
-            <OptionRow activeOpacity={0.9} onPress={() => toggle("medicos")}>
+            {/* ================== ESPECIALIDADES ================== */}
+            <OptionRow
+              activeOpacity={0.9}
+              onPress={() => toggle("especialidades")}
+            >
               <OptionLeft>
                 <Ionicons
                   name="medkit-outline"
                   size={18}
                   color={theme.colors.cinza}
                 />
-                <OptionText>Médicos</OptionText>
+                <OptionText>Especialidades</OptionText>
               </OptionLeft>
 
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
               >
-                {medicoAgendado && dataAgendada && horaAgendada ? (
+                {especialidadeAgendada && dataAgendada && horaAgendada ? (
                   <SelectedPill>
                     <SelectedPillText numberOfLines={1}>
-                      {`${medicoAgendado.split(" (")[0]} • ${dataAgendada} ${horaAgendada}`}
+                      {`${especialidadeAgendada} • ${dataAgendada} ${horaAgendada}`}
                     </SelectedPillText>
                   </SelectedPill>
-                ) : selectedMedico ? (
+                ) : selectedEspecialidade ? (
                   <SelectedPill>
                     <SelectedPillText numberOfLines={1}>
-                      {selectedMedico.split(" (")[0]}
+                      {selectedEspecialidade}
                     </SelectedPillText>
                   </SelectedPill>
                 ) : null}
 
                 <Ionicons
                   name={
-                    openKey === "medicos"
+                    openKey === "especialidades"
                       ? "caret-up-outline"
                       : "caret-down-outline"
                   }
@@ -858,21 +828,21 @@ export default function Exameseconsultas({ navigation }) {
               </View>
             </OptionRow>
 
-            {openKey === "medicos" && (
+            {openKey === "especialidades" && (
               <AccordionList
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
               >
-                {medicos.map((name) => {
-                  const active = selectedMedico === name;
+                {especialidades.map((name) => {
+                  const active = selectedEspecialidade === name;
                   return (
                     <AccordionItem
                       key={name}
                       activeOpacity={0.9}
                       onPress={() => {
-                        setSelectedMedico(name);
-                        setSelectedClinica(null); // ✅ limpa clínica antiga
-                        openDoctorSheet(name); // ✅ abre o sheet com datas/horários
+                        setSelectedEspecialidade(name);
+                        setSelectedClinica(null);
+                        openEspecialidadeSheet(name);
                       }}
                     >
                       <AccordionRow>
@@ -911,10 +881,10 @@ export default function Exameseconsultas({ navigation }) {
                       {selectedClinica}
                     </SelectedPillText>
                   </SelectedPill>
-                ) : !medicoAgendado || !dataAgendada || !horaAgendada ? (
+                ) : !especialidadeAgendada || !dataAgendada || !horaAgendada ? (
                   <SelectedPill>
                     <SelectedPillText numberOfLines={1}>
-                      Selecione médico/data/hora
+                      Selecione especialidade/data/hora
                     </SelectedPillText>
                   </SelectedPill>
                 ) : null}
@@ -936,11 +906,11 @@ export default function Exameseconsultas({ navigation }) {
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
               >
-                {!medicoAgendado || !dataAgendada || !horaAgendada ? (
+                {!especialidadeAgendada || !dataAgendada || !horaAgendada ? (
                   <View style={{ paddingVertical: 10 }}>
                     <Text style={{ color: theme.colors.textSecondary }}>
-                      Para ver as clínicas disponíveis, primeiro escolha um
-                      médico e confirme data e hora.
+                      Para ver as clínicas disponíveis, primeiro escolha uma
+                      especialidade e confirme data e hora.
                     </Text>
                   </View>
                 ) : clinicasFiltradas.length ? (
@@ -972,8 +942,8 @@ export default function Exameseconsultas({ navigation }) {
                 ) : (
                   <View style={{ paddingVertical: 10 }}>
                     <Text style={{ color: theme.colors.textSecondary }}>
-                      Nenhuma clínica disponível para esse médico neste dia e
-                      horário.
+                      Nenhuma clínica disponível para essa especialidade neste
+                      dia e horário.
                     </Text>
                   </View>
                 )}
@@ -1111,7 +1081,205 @@ export default function Exameseconsultas({ navigation }) {
 
             <DividerSpace />
 
-            {/* ================== AGENDAMENTO ================== */}
+            {/**============================================================================ */}
+
+            {/* ✅ RESUMO DO TRANSPORTE (CARD GRANDE) */}
+            {transporteDraft?.provider?.label ? (
+              <View
+                style={{
+                  marginTop: 14,
+                  padding: 14,
+                  borderRadius: 14,
+                  borderWidth: 2,
+                  borderColor: theme.colors.purple,
+                  backgroundColor: theme.colors.card || theme.colors.background,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={22}
+                      color={theme.colors.purple}
+                    />
+                    <Text
+                      style={{ fontWeight: "900", color: theme.colors.purple }}
+                    >
+                      Transporte confirmado
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    onPress={() =>
+                      navigation.navigate("Transporte2", {
+                        transporteDraft,
+                        returnToKey: route.key,
+                      })
+                    }
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 100,
+                      backgroundColor: theme.colors.purple,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.colors.surface,
+                        fontWeight: "700",
+                        fontSize: 10,
+                      }}
+                    >
+                      Editar
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <Text
+                  style={{
+                    color: theme.colors.text,
+                    fontWeight: "900",
+                    marginTop: -30,
+                  }}
+                ></Text>
+
+                {/* ✅ NOVO: Veículo / Motorista / Placa */}
+                {transporteDraft?.provider?.veiculo ? (
+                  <Text
+                    style={{
+                      color: theme.colors.text,
+                      fontWeight: "900",
+                      marginTop: 6,
+                    }}
+                  >
+                    Veículo:{" "}
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {transporteDraft.provider.veiculo}
+                    </Text>
+                  </Text>
+                ) : null}
+
+                {transporteDraft?.provider?.motorista ? (
+                  <Text
+                    style={{
+                      color: theme.colors.text,
+                      fontWeight: "900",
+                      marginTop: 6,
+                    }}
+                  >
+                    Motorista:{" "}
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {transporteDraft.provider.motorista}
+                    </Text>
+                  </Text>
+                ) : null}
+
+                {transporteDraft?.provider?.placa ? (
+                  <Text
+                    style={{
+                      color: theme.colors.text,
+                      fontWeight: "900",
+                      marginTop: 6,
+                    }}
+                  >
+                    Placa:{" "}
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {transporteDraft.provider.placa}
+                    </Text>
+                  </Text>
+                ) : null}
+
+                {transporteDraft?.schedule?.selectedTime ? (
+                  <Text
+                    style={{
+                      color: theme.colors.text,
+                      fontWeight: "900",
+                      marginTop: 6,
+                    }}
+                  >
+                    Horário:{" "}
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {transporteDraft.schedule.selectedTime}
+                    </Text>
+                  </Text>
+                ) : null}
+
+                {transporteDraft?.toAddress ? (
+                  <Text
+                    style={{
+                      color: theme.colors.text,
+                      fontWeight: "900",
+                      marginTop: 6,
+                    }}
+                  >
+                    Destino:{" "}
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {transporteDraft.toAddress}
+                    </Text>
+                  </Text>
+                ) : null}
+
+                {transporteDraft?.reason ? (
+                  <Text
+                    style={{
+                      color: theme.colors.text,
+                      fontWeight: "900",
+                      marginTop: 6,
+                    }}
+                  >
+                    Motivo:{" "}
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {transporteDraft.reason}
+                    </Text>
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/**============================================================================ */}
 
             <SectionTitle>Serviços emergenciais</SectionTitle>
 
@@ -1144,16 +1312,28 @@ export default function Exameseconsultas({ navigation }) {
 
               <MiniCard
                 activeOpacity={0.9}
-                onPress={() => navigation.navigate("Transporte")}
+                onPress={() =>
+                  navigation.navigate("Transporte2", {
+                    transporteDraft,
+                    returnToKey: route.key,
+                  })
+                }
+                style={{ backgroundColor: theme.colors.purple }}
               >
                 <MiniIconBox>
                   <Ionicons
                     name="car-outline"
-                    size={20}
-                    color={theme.colors.purple}
+                    size={28}
+                    color={theme.colors.surface}
                   />
                 </MiniIconBox>
-                <MiniText numberOfLines={2}>Transporte</MiniText>
+
+                <MiniText
+                  numberOfLines={2}
+                  style={{ color: theme.colors.surface }}
+                >
+                  Transporte
+                </MiniText>
               </MiniCard>
 
               <MiniCard activeOpacity={0.9} onPress={() => {}}>
@@ -1168,7 +1348,6 @@ export default function Exameseconsultas({ navigation }) {
               </MiniCard>
             </Grid>
 
-            {/* ✅ BOTÃO SALVAR */}
             <PrimaryButtonenviarareas
               title={loading ? "SALVANDO..." : "SALVAR"}
               onPress={handleSave}
@@ -1181,24 +1360,25 @@ export default function Exameseconsultas({ navigation }) {
 
       <DoctorScheduleSheet
         visible={sheetOpen}
-        onClose={closeDoctorSheet}
-        doctorName={sheetDoctor}
+        onClose={closeEspecialidadeSheet}
+        availability={
+          sheetEspecialidade ? specialtyAvailability[sheetEspecialidade] : null
+        }
+        doctorName={sheetEspecialidade}
         theme={theme}
-        availability={sheetDoctor ? doctorAvailability[sheetDoctor] : null}
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
         selectedHour={selectedHour}
         setSelectedHour={setSelectedHour}
         onConfirm={(payload) => {
-          setMedicoAgendado(payload.doctorName);
+          setEspecialidadeAgendada(payload.doctorName);
           setDataAgendada(payload.date);
           setHoraAgendada(payload.hour);
-          setSelectedMedico(payload.doctorName);
-          closeDoctorSheet();
+          setSelectedEspecialidade(payload.doctorName);
+          closeEspecialidadeSheet();
         }}
       />
 
-      {/* ✅ SUCESSO */}
       <AppAlert
         visible={successOpen}
         variant="success"

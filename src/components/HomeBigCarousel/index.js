@@ -1,47 +1,19 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, FlatList, useWindowDimensions } from "react-native";
+import { FlatList, useWindowDimensions, View } from "react-native";
 import { Images } from "../../assets/images";
 import ServiceCarouselCard from "../ServiceCarouselCard";
 import { BigCarousel, Dot, DotsRow } from "./styles";
-
-import { getAuth } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../services/firebase";
 
 export default function HomeBigCarousel({ navigation }) {
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const CARD_WIDTH = Math.round(width * 0.58);
-  const CARD_GAP = 55;
+  const CARD_WIDTH = width * 0.58;
+  const CARD_GAP = width * 0.22; // ex: 6% da tela (ajuste fino)
   const SNAP = CARD_WIDTH + CARD_GAP;
 
-  const handlePressSaude = useCallback(async () => {
-    try {
-      const auth = getAuth();
-      const uid = auth.currentUser?.uid;
-
-      if (!uid) {
-        Alert.alert("Atenção", "Faça login para acessar.");
-        return;
-      }
-
-      const snap = await getDoc(doc(db, "users", uid));
-      const sus = String(snap.data()?.susDigitado || "").trim();
-
-      if (sus !== "00000") {
-        Alert.alert(
-          "Acesso bloqueado",
-          "Usuário não tem permissão para acessar o SUS na região de Aragoiania.",
-        );
-        return;
-      }
-
-      navigation.navigate("SolicitarSaude");
-    } catch (e) {
-      console.log("❌ SAUDE CHECK:", e);
-      Alert.alert("Erro", "Não foi possível validar seu acesso.");
-    }
+  const handlePressSaude = useCallback(() => {
+    navigation.navigate("SolicitarSaude");
   }, [navigation]);
 
   const bigCards = useMemo(
@@ -88,22 +60,18 @@ export default function HomeBigCarousel({ navigation }) {
         data={bigCards}
         keyExtractor={(item) => item.id}
         snapToInterval={SNAP}
+        snapToAlignment="start"
         decelerationRate="fast"
-        contentContainerStyle={{ paddingLeft: 18, paddingRight: 18 }}
-        onMomentumScrollEnd={(event) => {
-          const index = Math.round(event.nativeEvent.contentOffset.x / SNAP);
-          setActiveIndex(index);
-        }}
-        renderItem={({ item, index }) => (
+        contentContainerStyle={{ paddingHorizontal: 18 }}
+        ItemSeparatorComponent={() => <View style={{ width: CARD_GAP }} />}
+        renderItem={({ item }) => (
           <ServiceCarouselCard
             title={item.title}
             image={item.image}
             icon={item.icon}
             onPress={item.onPress}
             width={CARD_WIDTH}
-            style={{
-              marginRight: index === bigCards.length - 1 ? 0 : CARD_GAP,
-            }}
+            style={{ flexShrink: 0 }} // garante que não “aperte”
           />
         )}
       />
