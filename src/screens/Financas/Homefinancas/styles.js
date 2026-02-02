@@ -53,16 +53,16 @@ export const TileText = styled.Text`
 export const Badge = styled.View`
   position: absolute;
   top: -8px;
-  left: 60px;
+  left: 50px;
 
   background-color: ${({ theme }) => theme.colors.red};
   padding: 3px 8px;
-  border-radius: 99px;
+  border-radius: 10px;
 `;
 
 export const BadgeText = styled.Text`
   color: ${({ theme }) => theme.colors.surface};
-  font-size: 11px;
+  font-size: 7px;
   font-weight: 800;
 `;
 

@@ -77,7 +77,10 @@ export async function updateRequestStatus({
   justificativa,
 
   // ✅ NOVO
-  isHidden, // boolean
+  isHidden,
+
+  // ✅ NOVO (SALVAR RESPONSÁVEL)
+  responsavelLiberacao,
 }) {
   if (!requestId) throw new Error("requestId obrigatório");
 
@@ -120,6 +123,16 @@ export async function updateRequestStatus({
     payload.isHidden = isHidden;
     payload.hiddenAt = isHidden ? serverTimestamp() : null;
     payload.hiddenBy = isHidden ? userId || null : null;
+  }
+
+  // ✅ SALVA O RESPONSÁVEL (TOP-LEVEL)
+  if (responsavelLiberacao && typeof responsavelLiberacao === "object") {
+    payload.responsavelLiberacao = {
+      uid: String(responsavelLiberacao.uid || "").trim(),
+      nome: String(responsavelLiberacao.nome || "").trim(),
+      area: String(responsavelLiberacao.area || "").trim(),
+      savedAtMs: Number(responsavelLiberacao.savedAtMs || Date.now()),
+    };
   }
 
   await updateDoc(refDoc, payload);

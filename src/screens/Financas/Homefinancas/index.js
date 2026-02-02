@@ -18,144 +18,140 @@ export default function Homefinancas({ navigation }) {
   const theme = useTheme();
 
   const sections = [
-    // 1️⃣ IMPOSTOS (primeiro)
     {
       id: "impostos",
-      title: "Impostos",
+      title: "",
       items: [
         {
           id: "iptu",
-          label: "IPTU",
-          icon: "home-outline",
+          label: "Receitas",
+          icon: "cash-outline", // ✅ Receitas (💲)
           badge: "Imposto",
           onPress: () => {},
         },
         {
           id: "iss",
-          label: "ISS / ISSQN",
-          icon: "briefcase-outline",
+          label: "despesas",
+          icon: "remove-circle-outline", // ✅ Despesas (➖)
           badge: "Imposto",
           onPress: () => {},
         },
         {
           id: "itbi",
-          label: "ITBI",
-          icon: "swap-horizontal-outline",
+          label: "Contratos",
+          icon: "document-outline", // ✅ Contratos (📄)
           badge: "Imposto",
           onPress: () => {},
         },
       ],
     },
 
-    // 2️⃣ TAXAS
     {
       id: "taxas",
-      title: "Taxas",
+      title: "",
       items: [
         {
           id: "tfl",
-          label: "TFL / TFLF\nFuncionamento",
-          icon: "business-outline",
+          label: "Licitações",
+          icon: "hammer-outline", // ✅ Licitações (martelo)
           onPress: () => {},
         },
         {
           id: "vigilancia",
-          label: "Vigilância\nSanitária",
-          icon: "medkit-outline",
+          label: "Dúvidas\nNota NF-e",
+          icon: "help-circle-outline", // ✅ Dúvidas (?)
           onPress: () => {},
         },
         {
           id: "incendio",
-          label: "Taxa de\nIncêndio",
-          icon: "flame-outline",
+          label: "Folha de\npagamento",
+          icon: "person-outline", // ✅ Folha de pagamento (usuário)
           onPress: () => {},
         },
         {
           id: "publicidade",
-          label: "Publicidade /\nLetreiros",
-          icon: "megaphone-outline",
+          label: "Ouvidoria\nmunicipal",
+          icon: "headset-outline", // ✅ Ouvidoria (headset)
           onPress: () => {},
         },
         {
           id: "ambiental",
-          label: "Licenciamento\nAmbiental",
-          icon: "leaf-outline",
+          label: "Carta de\nserviços",
+          icon: "ticket-outline", // ✅ Carta de serviços (ticket)
           onPress: () => {},
         },
         {
           id: "solo",
-          label: "Uso de Solo /\nEspaço Público",
-          icon: "map-outline",
+          label: "Concursos",
+          icon: "search-outline", // ✅ Concursos (lupa)
           onPress: () => {},
         },
       ],
     },
 
-    // 3️⃣ SERVIÇOS
     {
       id: "servicos",
-      title: "Serviços",
+      title: "",
       items: [
         {
           id: "lixo",
-          label: "TRSD\nTaxa de Lixo",
-          icon: "trash-outline",
+          label: "relatórios",
+          icon: "stats-chart-outline", // ✅ Relatórios (gráfico)
           onPress: () => {},
         },
         {
           id: "iluminacao",
-          label: "Iluminação\nPública",
-          icon: "bulb-outline",
+          label: "Nota\nfiscal",
+          icon: "receipt-outline", // ✅ Nota fiscal (recibo)
           onPress: () => {},
         },
         {
           id: "expediente",
-          label: "Taxa de\nExpediente",
-          icon: "document-text-outline",
+          label: "Consulta de\nprotocolo",
+          icon: "link-outline", // ✅ Consulta de protocolo (link)
           onPress: () => {},
         },
         {
           id: "cemiterio",
           label: "Taxa de\nCemitério",
-          icon: "skull-outline",
+          icon: "document-text-outline", // (extra) se quiser manter algo “documento”
           onPress: () => {},
         },
       ],
     },
 
-    // 4️⃣ ALVARÁS
     {
       id: "alvaras",
-      title: "Alvarás",
+      title: "",
       items: [
         {
           id: "alvara-func",
           label: "Alvará de\nFuncionamento",
-          icon: "checkmark-circle-outline",
+          icon: "document-text-outline",
           onPress: () => {},
         },
         {
           id: "alvara-obra",
           label: "Alvará de\nConstrução",
-          icon: "construct-outline",
+          icon: "document-text-outline",
           onPress: () => {},
         },
         {
           id: "habite",
           label: "Habite-se",
-          icon: "home-outline",
+          icon: "document-text-outline",
           onPress: () => {},
         },
         {
           id: "eventos",
           label: "Alvará para\nEventos",
-          icon: "calendar-outline",
+          icon: "document-text-outline",
           onPress: () => {},
         },
         {
           id: "ambulante",
           label: "Comércio\nAmbulante",
-          icon: "storefront-outline",
+          icon: "document-text-outline",
           onPress: () => {},
         },
       ],

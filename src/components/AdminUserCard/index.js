@@ -24,7 +24,7 @@ export default function AdminUserCard({
         <Subtitle>{count} solicitação(ões)</Subtitle>
         <Ionicons
           name={open ? "chevron-up" : "chevron-down"}
-          size={18}
+          size={15}
           color={theme.colors.purple}
         />
       </Right>

@@ -80,6 +80,7 @@ function parseDescricao(descricaoRaw) {
   }
 
   return {
+    especialidade: map["especialidade"] || "",
     medico: map["medico"] || "",
     clinica: map["clinica"] || "",
     exame: map["exame"] || "",
@@ -87,7 +88,6 @@ function parseDescricao(descricaoRaw) {
     data: map["data"] || "",
     horario: map["horario"] || "",
 
-    // ✅ transporte (texto)
     transporte: map["transporte"] || "",
     transporteHorario: map["transporte horario"] || "",
     destinoTransporte: map["destino transporte"] || "",
@@ -96,7 +96,49 @@ function parseDescricao(descricaoRaw) {
     placaTransporte: map["placa transporte"] || "",
     veiculoTransporte: map["veiculo transporte"] || "",
 
+    lines,
     rawMap: map,
+  };
+}
+
+function parseTransporteFromDescricao(descricaoRaw) {
+  const raw = String(descricaoRaw || "");
+
+  const tipo =
+    raw
+      .match(/Transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i)?.[1]
+      ?.trim() || "";
+
+  const horario =
+    raw.match(/Transporte horário:\s*([0-9]{2}:[0-9]{2})/i)?.[1]?.trim() || "";
+
+  const destino =
+    raw
+      .match(
+        /Destino transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i,
+      )?.[1]
+      ?.trim() || "";
+
+  const motivo =
+    raw
+      .match(/Motivo transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i)?.[1]
+      ?.trim() || "";
+
+  if (!tipo && !horario && !destino && !motivo) return null;
+
+  return {
+    provider: {
+      veiculo: tipo || "—",
+      nome: tipo || "—",
+      label: tipo || "Transporte",
+      motorista: "",
+      placa: "",
+    },
+    schedule: {
+      selectedTime: horario || "",
+    },
+    toAddress: destino || "",
+    reason: motivo || "",
   };
 }
 
@@ -120,6 +162,19 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const theme = useTheme();
   const { requestId } = route?.params || {};
 
+  const auth = getAuth();
+  const userEmail = (auth.currentUser?.email || "").toLowerCase();
+  const adminScope = getAdminScopeByEmail(userEmail);
+  const isAdmin = !!adminScope;
+
+  // ✅ garante que só admin de SAÚDE edite essa tela
+  const canEditThisArea = useMemo(() => {
+    const areaIds = adminScope?.areaIds || [];
+    return areaIds.includes("saude");
+  }, [adminScope]);
+
+  const canAdminEdit = isAdmin && canEditThisArea;
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -130,12 +185,23 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const [responsavelNome, setResponsavelNome] = useState("");
   const [loadingResponsavel, setLoadingResponsavel] = useState(false);
 
-  const responsavelSalvoNome = String(
-    data?.responsavelLiberacao?.nome || "",
-  ).trim();
-  const responsavelSalvoUid = String(
-    data?.responsavelLiberacao?.uid || "",
-  ).trim();
+  const responsavelSalvo = useMemo(() => {
+    const r =
+      data?.responsavelLiberacao ||
+      data?.saudeData?.responsavelLiberacao ||
+      data?.data?.responsavelLiberacao ||
+      null;
+
+    return {
+      uid: String(r?.uid || "").trim(),
+      nome: String(r?.nome || "").trim(),
+      area: String(r?.area || "").trim(),
+    };
+  }, [data]);
+
+  const responsavelSalvoNome = responsavelSalvo.nome;
+  const responsavelSalvoUid = responsavelSalvo.uid;
+
   const shouldShowResponsavelToUser = !!responsavelSalvoNome; // usuário só vê se admin salvou
 
   const [parecerOpen, setParecerOpen] = useState(false);
@@ -152,6 +218,57 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     ],
     [],
   );
+
+  const statusOptions = parecerOptions; // status = parecer
+
+  function formatarDataBR(value) {
+    if (!value) return "";
+
+    if (value?.toDate) {
+      const d = value.toDate();
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yyyy = String(d.getFullYear());
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    if (typeof value === "number") {
+      const d = new Date(value);
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yyyy = String(d.getFullYear());
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    const s = String(value).trim();
+
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+      const [a, b, c] = s.split("/");
+      const dd = String(a).padStart(2, "0");
+      const mm = String(b).padStart(2, "0");
+      return `${dd}/${mm}/${c}`;
+    }
+
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+
+    const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s|$)/);
+    if (us) {
+      const mm = String(us[1]).padStart(2, "0");
+      const dd = String(us[2]).padStart(2, "0");
+      return `${dd}/${mm}/${us[3]}`;
+    }
+
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yyyy = String(d.getFullYear());
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    return s;
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -183,186 +300,13 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     return () => {
       mounted = false;
     };
-  }, [canAdminEdit]);
-
-  // ✅ auth/admin
-  const auth = getAuth();
-  const userEmail = (auth.currentUser?.email || "").toLowerCase();
-  const adminScope = getAdminScopeByEmail(userEmail);
-  const isAdmin = !!adminScope;
-
-  // ✅ garante que só admin de SAÚDE edite essa tela
-  const canEditThisArea = useMemo(() => {
-    const areaIds = adminScope?.areaIds || [];
-    return areaIds.includes("saude");
-  }, [adminScope]);
-
-  const canAdminEdit = isAdmin && canEditThisArea;
+  }, [canAdminEdit, auth]);
 
   useEffect(() => {
     if (!data) return;
-
     setParecerDraft(String(data?.parecer || "analise").toLowerCase());
     setJustificativaDraft(String(data?.justificativa || ""));
   }, [data]);
-
-  const saudeData = data?.saudeData || data?.data || null;
-
-  const transporteData =
-    saudeData?.transporteData ||
-    data?.transporteData ||
-    data?.data?.transporteData ||
-    parseTransporteFromDescricao(data?.data?.descricao || data?.descricao) ||
-    null;
-
-  const parecerInfo = useMemo(() => {
-    const v = String(parecerDraft || data?.parecer || "analise").toLowerCase();
-    return (
-      parecerOptions.find((o) => o.value === v) || {
-        value: v,
-        label: v.toUpperCase(),
-        color: theme.colors.textSecondary,
-      }
-    );
-  }, [parecerDraft, data?.parecer, parecerOptions, theme.colors.textSecondary]);
-
-  const bolinhaColor = parecerInfo.color;
-
-  function parseTransporteFromDescricao(descricaoRaw) {
-    const raw = String(descricaoRaw || "");
-
-    // tenta pegar:
-    // Transporte: X
-    // Transporte horário: HH:MM
-    // Destino transporte: Y
-    // Motivo transporte: Z
-    const tipo =
-      raw
-        .match(/Transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i)?.[1]
-        ?.trim() || "";
-
-    const horario =
-      raw.match(/Transporte horário:\s*([0-9]{2}:[0-9]{2})/i)?.[1]?.trim() ||
-      "";
-
-    const destino =
-      raw
-        .match(
-          /Destino transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i,
-        )?.[1]
-        ?.trim() || "";
-
-    const motivo =
-      raw
-        .match(
-          /Motivo transporte:\s*([^\n\r]+?)(?=\s+[A-Za-zÀ-ÿ ]+:\s*|$)/i,
-        )?.[1]
-        ?.trim() || "";
-
-    if (!tipo && !horario && !destino && !motivo) return null;
-
-    return {
-      provider: {
-        // como no texto não vem motorista/placa, a gente só preenche o que tem
-        veiculo: tipo || "—",
-        nome: tipo || "—",
-        label: tipo || "Transporte",
-        motorista: "",
-        placa: "",
-      },
-      schedule: {
-        selectedTime: horario || "",
-      },
-      toAddress: destino || "",
-      reason: motivo || "",
-    };
-  }
-
-  // =========================================================================
-
-  const statusOptions = parecerOptions; // status = parecer
-  const [saving, setSaving] = useState(false);
-
-  const hasChanges = !!(
-    canAdminEdit &&
-    ((statusDraft &&
-      statusDraft !== String(data?.status || "").toLowerCase()) ||
-      (parecerDraft &&
-        parecerDraft !== String(data?.parecer || "analise").toLowerCase()) ||
-      String(justificativaDraft || "") !== String(data?.justificativa || ""))
-  );
-
-  useEffect(() => {
-    // status acompanha parecer, exceto "concluido"
-    if (!parecerDraft) return;
-
-    const p = String(parecerDraft).toLowerCase();
-    if (p === "concluido") return;
-
-    setStatusDraft(p);
-  }, [parecerDraft]);
-
-  async function handleSaveAll() {
-    try {
-      if (!requestId) return;
-
-      if (!canAdminEdit) {
-        return Alert.alert(
-          "Acesso negado",
-          "Somente o admin responsável pela área de SAÚDE pode salvar aqui.",
-        );
-      }
-
-      setSaving(true);
-
-      const parecerLower = String(parecerDraft || "").toLowerCase();
-      const isConcluido = parecerLower === "concluido";
-
-      // ✅ UID do admin logado
-      // ✅ UID do admin logado
-      const uid =
-        responsavelUid || auth.currentUser?.uid || (await getAuthUserId());
-
-      // ✅ Nome do responsável (preferência: users/{uid})
-      const nome = String(responsavelNome || "").trim();
-
-      // ✅ REGRA: admin só salva se o nome realmente estiver aparecendo
-      if (!uid || !nome) {
-        Alert.alert(
-          "Atenção",
-          "Não foi possível identificar o responsável pela liberação. Verifique se o admin possui nome no cadastro (users).",
-        );
-        return;
-      }
-
-      await updateRequestStatus({
-        requestId,
-        userId: uid,
-
-        parecer: parecerLower,
-        justificativa: justificativaDraft,
-
-        status: isConcluido
-          ? null
-          : String(statusDraft || "analise").toLowerCase(),
-        isHidden: isConcluido,
-
-        responsavelLiberacao: {
-          uid,
-          nome,
-          area: "saude",
-          savedAtMs: Date.now(),
-        },
-      });
-
-      Alert.alert("Sucesso", "Alterações salvas!");
-    } catch (e) {
-      console.log("❌ Erro ao salvar:", e);
-      Alert.alert("Erro", "Não foi possível salvar as alterações.");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   useEffect(() => {
     if (!data?.status) return;
@@ -394,35 +338,35 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   );
   const parsed = useMemo(() => parseDescricao(descricao), [descricao]);
 
-  // ================= TRANSPORTE (fallback seguro) =================
-  const transporteTipo = String(
-    transporteData?.provider?.label ||
-      transporteData?.provider?.nome ||
-      parsed.transporte ||
-      "",
-  ).trim();
+  const saudeData = data?.saudeData || data?.data || null;
 
-  const transporteMotoristaLabel = String(
-    transporteData?.provider?.motorista || parsed.motoristaTransporte || "",
-  ).trim();
+  const transporteData =
+    saudeData?.transporteData ||
+    data?.transporteData ||
+    data?.data?.transporteData ||
+    parseTransporteFromDescricao(data?.data?.descricao || data?.descricao) ||
+    null;
 
-  const transportePlacaLabel = String(
-    transporteData?.provider?.placa || parsed.placaTransporte || "",
-  ).trim();
+  const parecerInfo = useMemo(() => {
+    const v = String(parecerDraft || data?.parecer || "analise").toLowerCase();
+    return (
+      parecerOptions.find((o) => o.value === v) || {
+        value: v,
+        label: v.toUpperCase(),
+        color: theme.colors.textSecondary,
+      }
+    );
+  }, [parecerDraft, data?.parecer, parecerOptions, theme.colors.textSecondary]);
 
-  // ================================================================
+  const bolinhaColor = parecerInfo.color;
 
-  // ✅ Fallbacks seguros: primeiro tenta transporteData, depois tenta descrição parseada
+  // ✅ TRANSPORTE (fallback seguro)
   const transporteVeiculo = String(
-    // ✅ 1) PRIMEIRO: "Veículo transporte" vindo da descrição (print)
     parsed.veiculoTransporte ||
-      // ✅ 2) depois: caso novo esteja salvo no transporteData de forma estruturada
       transporteData?.provider?.veiculo ||
       transporteData?.provider?.label ||
       transporteData?.provider?.nome ||
-      // ✅ 3) legacy
       transporteData?.vehicleName ||
-      // ✅ 4) último fallback: tipo de transporte
       parsed.transporte ||
       "",
   ).trim();
@@ -453,7 +397,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     transporteData?.reason || parsed.motivoTransporte || "",
   ).trim();
 
-  // ✅ Só mostra a seção se tiver qualquer coisa
   const shouldShowTransporte = !!(
     transporteVeiculo ||
     transporteMotorista ||
@@ -463,20 +406,10 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     transporteMotivo
   );
 
-  const transporteToAddress =
-    String(transporteData?.toAddress || "").trim() ||
-    String(parsed.destinoTransporte || "").trim();
-
-  const transporteReason =
-    String(transporteData?.reason || "").trim() ||
-    String(parsed.motivoTransporte || "").trim();
-
   // ===== Campos do resumo =====
   const clinicaSelecionada =
     saudeData?.clinicaSelecionada || parsed.clinica || "";
-
   const exameSelecionado = saudeData?.exameSelecionado || parsed.exame || "";
-
   const procedimentoSelecionado =
     saudeData?.procedimentoSelecionado || parsed.procedimento || "";
 
@@ -494,7 +427,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     const current = String(
       statusDraft || data?.status || "analise",
     ).toLowerCase();
-
     return (
       statusOptions.find((o) => o.value === current) || {
         value: current,
@@ -511,44 +443,144 @@ export default function ReplyExameseconsultas({ navigation, route }) {
     return statusOptions.find((o) => o.value === v) || statusInfo;
   }, [statusDraft, statusInfo, statusOptions]);
 
-  // ✅ ESPECIALIDADE: só 1 declaração (resolve o "Cannot redeclare...")
+  // ✅ ESPECIALIDADE
   const especialidadeLabel = useMemo(() => {
     const espAgendada = String(saudeData?.especialidadeAgendada || "").trim();
     const dataAg = String(saudeData?.dataAgendada || "").trim();
     const horaAg = String(saudeData?.horaAgendada || "").trim();
 
-    const espSelecionada = String(
-      saudeData?.especialidadeSelecionada ||
-        saudeData?.medicoSelecionado || // fallback legado
-        parsed.medico || // fallback texto antigo
-        "",
+    const espFromDescricao = String(
+      saudeData?.especialidadeSelecionada || parsed.especialidade || "",
     ).trim();
 
-    // 1) prioridade: agendada + data + hora
-    if (espAgendada && dataAg && horaAg) {
-      return `${espAgendada} • ${dataAg} ${horaAg}`;
+    if (espAgendada && dataAg && horaAg)
+      return `${espAgendada} • ${formatarDataBR(dataAg)} ${horaAg}`;
+
+    if (espFromDescricao && parsed.data && parsed.horario) {
+      return `${espFromDescricao} • ${formatarDataBR(parsed.data)} ${parsed.horario}`;
     }
 
-    // 2) fallback: se descrição antiga tinha Data/Horário
-    if (espSelecionada && parsed.data && parsed.horario) {
-      return `${espSelecionada} • ${parsed.data} ${parsed.horario}`;
-    }
-
-    // 3) só especialidade
-    if (espSelecionada) return espSelecionada;
-
-    // 4) último fallback: procurar "Especialidade:" nas linhas
-    const fromDescricao =
-      parsed?.lines?.find((l) =>
-        l.toLowerCase().startsWith("especialidade:"),
-      ) || "";
-
-    if (fromDescricao) {
-      return fromDescricao.split(":").slice(1).join(":").trim();
-    }
+    if (espFromDescricao) return espFromDescricao;
 
     return "";
-  }, [saudeData, parsed.medico, parsed.data, parsed.horario, parsed.lines]);
+  }, [saudeData, parsed.especialidade, parsed.data, parsed.horario]);
+
+  // ✅ detecta se precisa salvar o responsavel mesmo sem mexer em nada
+  const needsResponsavelSave = useMemo(() => {
+    if (!canAdminEdit) return false;
+    if (!responsavelUid || !responsavelNome) return false;
+
+    return (
+      String(responsavelSalvoUid || "").trim() !==
+        String(responsavelUid || "").trim() ||
+      String(responsavelSalvoNome || "").trim() !==
+        String(responsavelNome || "").trim()
+    );
+  }, [
+    canAdminEdit,
+    responsavelUid,
+    responsavelNome,
+    responsavelSalvoUid,
+    responsavelSalvoNome,
+  ]);
+
+  const [saving, setSaving] = useState(false);
+
+  const hasChanges = useMemo(() => {
+    if (!canAdminEdit) return false;
+
+    const statusChanged =
+      !!statusDraft && statusDraft !== String(data?.status || "").toLowerCase();
+
+    const parecerChanged =
+      !!parecerDraft &&
+      parecerDraft !== String(data?.parecer || "analise").toLowerCase();
+
+    const justificativaChanged =
+      String(justificativaDraft || "") !== String(data?.justificativa || "");
+
+    return (
+      statusChanged ||
+      parecerChanged ||
+      justificativaChanged ||
+      needsResponsavelSave
+    );
+  }, [
+    canAdminEdit,
+    statusDraft,
+    data?.status,
+    parecerDraft,
+    data?.parecer,
+    justificativaDraft,
+    data?.justificativa,
+    needsResponsavelSave,
+  ]);
+
+  useEffect(() => {
+    if (!parecerDraft) return;
+    const p = String(parecerDraft).toLowerCase();
+    if (p === "concluido") return;
+    setStatusDraft(p);
+  }, [parecerDraft]);
+
+  async function handleSaveAll() {
+    try {
+      if (!requestId) return;
+
+      if (!canAdminEdit) {
+        return Alert.alert(
+          "Acesso negado",
+          "Somente o admin responsável pela área de SAÚDE pode salvar aqui.",
+        );
+      }
+
+      setSaving(true);
+
+      const parecerLower = String(parecerDraft || "").toLowerCase();
+      const isConcluido = parecerLower === "concluido";
+
+      const uid =
+        responsavelUid || auth.currentUser?.uid || (await getAuthUserId());
+      const nome = String(responsavelNome || "").trim();
+
+      if (!uid || !nome) {
+        Alert.alert(
+          "Atenção",
+          "Não foi possível identificar o responsável pela liberação. Verifique se o admin possui nome no cadastro (users).",
+        );
+        return;
+      }
+
+      const responsavelPayload = {
+        uid,
+        nome,
+        area: "saude",
+        savedAtMs: Date.now(),
+      };
+
+      await updateRequestStatus({
+        requestId,
+        userId: uid, // ✅ aqui é o UID do admin (quem está salvando)
+
+        parecer: parecerLower,
+        justificativa: justificativaDraft,
+
+        status: isConcluido
+          ? null
+          : String(statusDraft || "analise").toLowerCase(),
+        isHidden: isConcluido,
+
+        responsavelLiberacao: responsavelPayload, // ✅ AGORA VAI SALVAR
+      });
+
+      Alert.alert("Sucesso", "Alterações salvas!");
+    } catch (e) {
+      console.log("❌ Erro ao salvar:", e);
+      Alert.alert("Erro", "Não foi possível salvar as alterações.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <Container>
@@ -657,21 +689,30 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         backgroundColor: bolinhaColor,
                       }}
                     />
+
                     <Ionicons
                       name="medkit-outline"
-                      size={18}
+                      size={15}
                       color={theme.colors.cinza}
                     />
-                    <OptionText>Especialidades</OptionText>
-                  </OptionLeft>
 
-                  {especialidadeLabel ? (
-                    <SelectedPill>
-                      <SelectedPillText>{especialidadeLabel}</SelectedPillText>
-                    </SelectedPill>
-                  ) : (
-                    <Text style={{ color: theme.colors.textSecondary }}>—</Text>
-                  )}
+                    <View style={{ marginLeft: 6 }}>
+                      <OptionText>Especialidades</OptionText>
+
+                      {especialidadeLabel ? (
+                        <SelectedPillText
+                          numberOfLines={1}
+                          style={{ fontSize: 8.8 }}
+                        >
+                          {especialidadeLabel}
+                        </SelectedPillText>
+                      ) : (
+                        <Text style={{ color: theme.colors.textSecondary }}>
+                          —
+                        </Text>
+                      )}
+                    </View>
+                  </OptionLeft>
                 </OptionRow>
 
                 {/* CLÍNICA */}
@@ -764,6 +805,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                   )}
                 </OptionRow>
 
+                {/* TRANSPORTE */}
                 {shouldShowTransporte ? (
                   <View style={{ marginTop: 12 }}>
                     <Text
@@ -1014,7 +1056,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                           const selected =
                             String(parecerDraft || "").toLowerCase() ===
                             opt.value;
-
                           const optColor =
                             opt.color || theme.colors.textSecondary;
 
@@ -1174,7 +1215,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                   </View>
                 ) : null}
 
-                {/* USER: justificativa */}
+                {/* ✅ USER: justificativa (se existir) */}
                 {!canAdminEdit && (data?.justificativa || "").trim() ? (
                   <View style={{ marginTop: 12 }}>
                     <Text
@@ -1204,41 +1245,39 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         {String(data?.justificativa || "")}
                       </Text>
                     </View>
+                  </View>
+                ) : null}
 
-                    {!canAdminEdit && shouldShowResponsavelToUser ? (
-                      <View style={{ marginTop: 12 }}>
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: "900",
-                            color: theme.colors.text,
-                            marginBottom: 8,
-                          }}
-                        >
-                          Responsável pela liberação da solicitação
-                        </Text>
+                {/* ✅ USER: responsável (independente da justificativa) */}
+                {!canAdminEdit && shouldShowResponsavelToUser ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "900",
+                        color: theme.colors.text,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Responsável pela liberação da solicitação
+                    </Text>
 
-                        <View
-                          style={{
-                            borderWidth: 1,
-                            borderColor: theme.colors.border,
-                            borderRadius: 12,
-                            backgroundColor: theme.colors.background,
-                            paddingHorizontal: 12,
-                            paddingVertical: 12,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: theme.colors.text,
-                              fontWeight: "900",
-                            }}
-                          >
-                            {responsavelSalvoNome}
-                          </Text>
-                        </View>
-                      </View>
-                    ) : null}
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.background,
+                        paddingHorizontal: 12,
+                        paddingVertical: 12,
+                      }}
+                    >
+                      <Text
+                        style={{ color: theme.colors.text, fontWeight: "900" }}
+                      >
+                        {responsavelSalvoNome}
+                      </Text>
+                    </View>
                   </View>
                 ) : null}
 
@@ -1293,7 +1332,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
               <View style={{ padding: 12 }}>
                 <TouchableOpacity
                   activeOpacity={0.9}
-                  disabled={!hasChanges || saving}
+                  disabled={saving || !hasChanges}
                   onPress={handleSaveAll}
                   style={{
                     height: 44,
@@ -1301,13 +1340,13 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor:
-                      !hasChanges || saving
+                      saving || !hasChanges
                         ? theme.colors.border
                         : theme.colors.purple,
                   }}
                 >
                   {saving ? (
-                    <ActivityIndicator />
+                    <ActivityIndicator color="#fff" />
                   ) : (
                     <Text style={{ color: "#fff", fontWeight: "900" }}>
                       SALVAR ALTERAÇÕES
@@ -1315,6 +1354,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                   )}
                 </TouchableOpacity>
 
+                {/* Mensagens de ajuda */}
                 {!hasChanges ? (
                   <Text
                     style={{
@@ -1326,7 +1366,30 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                   >
                     Nenhuma alteração pendente.
                   </Text>
-                ) : null}
+                ) : needsResponsavelSave ? (
+                  <Text
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: theme.colors.textSecondary,
+                      textAlign: "center",
+                    }}
+                  >
+                    Salve para registrar o responsável e liberar a visualização
+                    ao usuário.
+                  </Text>
+                ) : (
+                  <Text
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: theme.colors.textSecondary,
+                      textAlign: "center",
+                    }}
+                  >
+                    Existem alterações não salvas.
+                  </Text>
+                )}
               </View>
             ) : null}
           </Card>

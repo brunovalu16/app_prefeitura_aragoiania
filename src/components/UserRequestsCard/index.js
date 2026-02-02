@@ -4,13 +4,13 @@ import { TouchableOpacity, View } from "react-native";
 import { useTheme } from "styled-components/native";
 
 import {
-    CardMaster,
-    Divider,
-    HeaderCount,
-    HeaderLeft,
-    HeaderRow,
-    HeaderTitle,
-    RequestsBody,
+  CardMaster,
+  Divider,
+  HeaderCount,
+  HeaderLeft,
+  HeaderRow,
+  HeaderTitle,
+  RequestsBody,
 } from "./styles";
 
 export default function UserRequestsCard({
@@ -23,16 +23,26 @@ export default function UserRequestsCard({
   const [open, setOpen] = useState(defaultOpen);
 
   const total = useMemo(() => {
-    return (areas || []).reduce((sum, a) => sum + (a?.requests?.length || 0), 0);
+    return (areas || []).reduce(
+      (sum, a) => sum + (a?.requests?.length || 0),
+      0,
+    );
   }, [areas]);
 
   return (
     <>
       <CardMaster>
-        <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen((v) => !v)}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setOpen((v) => !v)}
+        >
           <HeaderRow>
             <HeaderLeft>
-              <Ionicons name="person-outline" size={18} color={theme.colors.purple} />
+              <Ionicons
+                name="person-outline"
+                size={18}
+                color={theme.colors.purple}
+              />
               <View style={{ marginLeft: 8 }}>
                 <HeaderTitle>{userEmail}</HeaderTitle>
                 <HeaderCount>{total} solicitação(ões)</HeaderCount>
