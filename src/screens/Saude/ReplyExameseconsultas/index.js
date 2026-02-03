@@ -422,6 +422,20 @@ export default function ReplyExameseconsultas({ navigation, route }) {
   const requestTitle =
     data?.requestTitle || "SOLICITAÇÃO SAÚDE - EXAMES E CONSULTAS";
 
+  function getTextoParecer(data) {
+    const st = String(data?.status || data?.parecer || "analise").toLowerCase();
+
+    if (st === "analise")
+      return String(data?.notaAnalise || data?.justificativa || "");
+    if (st === "pendente")
+      return String(data?.notaPendente || data?.justificativa || "");
+    if (st === "recusado")
+      return String(data?.notaRecusado || data?.justificativa || "");
+
+    // liberado / concluido
+    return String(data?.justificativa || "");
+  }
+
   // ✅ statusInfo (necessário pro draftInfo)
   const statusInfo = useMemo(() => {
     const current = String(
@@ -566,7 +580,7 @@ export default function ReplyExameseconsultas({ navigation, route }) {
         justificativa: justificativaDraft,
 
         status: isConcluido
-          ? null
+          ? "concluido"
           : String(statusDraft || "analise").toLowerCase(),
         isHidden: isConcluido,
 
@@ -581,6 +595,10 @@ export default function ReplyExameseconsultas({ navigation, route }) {
       setSaving(false);
     }
   }
+
+  const textoPrefeitura = useMemo(() => getTextoParecer(data), [data]);
+  const shouldShowTextoPrefeitura =
+    !canAdminEdit && !!String(textoPrefeitura || "").trim();
 
   return (
     <Container>
@@ -992,6 +1010,38 @@ export default function ReplyExameseconsultas({ navigation, route }) {
 
                 <DividerSpace />
 
+                {!canAdminEdit && shouldShowTextoPrefeitura ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "900",
+                        color: theme.colors.text,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Mensagem da Prefeitura
+                    </Text>
+
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.background,
+                        paddingHorizontal: 12,
+                        paddingVertical: 12,
+                      }}
+                    >
+                      <Text
+                        style={{ color: theme.colors.text, fontWeight: "700" }}
+                      >
+                        {String(textoPrefeitura)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
                 {/* ADMIN: parecer + justificativa */}
                 {canAdminEdit ? (
                   <View style={{ marginTop: 12 }}>
@@ -1215,39 +1265,6 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                   </View>
                 ) : null}
 
-                {/* ✅ USER: justificativa (se existir) */}
-                {!canAdminEdit && (data?.justificativa || "").trim() ? (
-                  <View style={{ marginTop: 12 }}>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: "900",
-                        color: theme.colors.text,
-                        marginBottom: 8,
-                      }}
-                    >
-                      Justificativa da Prefeitura
-                    </Text>
-
-                    <View
-                      style={{
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                        borderRadius: 12,
-                        backgroundColor: theme.colors.background,
-                        paddingHorizontal: 12,
-                        paddingVertical: 12,
-                      }}
-                    >
-                      <Text
-                        style={{ color: theme.colors.text, fontWeight: "700" }}
-                      >
-                        {String(data?.justificativa || "")}
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
-
                 {/* ✅ USER: responsável (independente da justificativa) */}
                 {!canAdminEdit && shouldShowResponsavelToUser ? (
                   <View style={{ marginTop: 12 }}>
@@ -1272,11 +1289,42 @@ export default function ReplyExameseconsultas({ navigation, route }) {
                         paddingVertical: 12,
                       }}
                     >
+                      {/* Nome */}
                       <Text
                         style={{ color: theme.colors.text, fontWeight: "900" }}
                       >
                         {responsavelSalvoNome}
                       </Text>
+
+                      {/* Detalhes extras (opcionais) */}
+                      {!!responsavelSalvo?.area ? (
+                        <Text
+                          style={{
+                            marginTop: 4,
+                            color: theme.colors.textSecondary,
+                            fontWeight: "700",
+                            fontSize: 12,
+                          }}
+                        >
+                          Área: {String(responsavelSalvo.area).toUpperCase()}
+                        </Text>
+                      ) : null}
+
+                      {!!responsavelSalvo?.savedAtMs ? (
+                        <Text
+                          style={{
+                            marginTop: 2,
+                            color: theme.colors.textSecondary,
+                            fontWeight: "700",
+                            fontSize: 12,
+                          }}
+                        >
+                          Registrado em:{" "}
+                          {new Date(
+                            Number(responsavelSalvo.savedAtMs),
+                          ).toLocaleString("pt-BR")}
+                        </Text>
+                      ) : null}
                     </View>
                   </View>
                 ) : null}
