@@ -1,12 +1,22 @@
 import { styled } from "styled-components/native";
 
-
 export const CardMaster = styled.View`
   background: #fff;
   border-radius: 14px;
   padding: 12px;
   margin-bottom: 12px;
   border: 1px solid rgba(0, 0, 0, 0.06);
+  position: relative;
+`;
+
+export const LeftBar = styled.View`
+  position: absolute;
+  left: 0;
+  top: 12px; /* controla onde começa */
+  height: 40px; /* 👈 controla altura da linha */
+  width: 3px;
+  background-color: ${({ theme }) => theme.colors.purple};
+  border-radius: 2px;
 `;
 
 export const HeaderRow = styled.View`
@@ -23,7 +33,7 @@ export const HeaderLeft = styled.View`
 export const HeaderTitle = styled.Text`
   font-size: 14px;
   font-weight: 700;
-  color: #3A0B6C;
+  color: #3a0b6c;
 `;
 
 export const HeaderCount = styled.Text`
@@ -51,5 +61,3 @@ export const RequestsBody = styled.View`
   padding-right: 6px;
   padding-bottom: 12px;
 `;
-
-

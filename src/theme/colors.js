@@ -13,4 +13,5 @@ export const colors = {
   redDark: "#BE123C",
   cinza: "#777777",
   cinzaclaro: "#d9d9e4",
+  verde: "#00d497",
 };

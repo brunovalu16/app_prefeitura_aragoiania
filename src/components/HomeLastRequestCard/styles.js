@@ -13,6 +13,7 @@ export const SmallCard = styled.TouchableOpacity`
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
+  position: relative;
 
   ${Platform.OS === "android" &&
   `
@@ -20,7 +21,15 @@ export const SmallCard = styled.TouchableOpacity`
   `}
 `;
 
-
+export const LeftBarSmall = styled.View`
+  position: absolute;
+  left: 0;
+  top: 23px;
+  height: 40px;
+  width: 3px;
+  background-color: ${({ theme }) => theme.colors.cinzaclaro};
+  border-radius: 2px;
+`;
 
 export const SmallIconLeft = styled.View`
   flex-direction: row;

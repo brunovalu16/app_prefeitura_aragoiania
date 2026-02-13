@@ -12,6 +12,7 @@ import {
   HeaderLeft,
   HeaderRow,
   HeaderTitle,
+  LeftBar,
   RequestsBody,
 } from "./styles";
 
@@ -45,17 +46,26 @@ export default function AreaRequestsCard({
   return (
     <>
       <CardMaster>
+        <LeftBar />
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={() => setOpen((v) => !v)}
         >
           <HeaderRow>
             <HeaderLeft>
-              <Ionicons
-                name="folder-outline"
-                size={18}
-                color={theme.colors.purple}
-              />
+              <View
+                style={{
+                  backgroundColor: theme.colors.purple,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="folder-outline" size={18} color="#fff" />
+              </View>
+
               <View style={{ marginLeft: 8 }}>
                 <HeaderTitle>{areaLabel}</HeaderTitle>
                 <HeaderCount>{countText}</HeaderCount>

@@ -217,31 +217,33 @@ const DoctorScheduleSheet = React.memo(function DoctorScheduleSheet({
       translateY.setValue(screenH);
       backdrop.setValue(0);
 
+      // ABRIR
       Animated.parallel([
         Animated.timing(backdrop, {
           toValue: 1,
-          duration: 260,
+          duration: 1000, // antes 260
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: 0,
-          duration: 260,
+          duration: 1000, // ✅ mais devagar (antes 260)
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start();
     } else if (mounted) {
+      // FECHAR
       Animated.parallel([
         Animated.timing(backdrop, {
           toValue: 0,
-          duration: 200,
+          duration: 1400, // antes 200
           easing: Easing.in(Easing.quad),
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: screenH,
-          duration: 200,
+          duration: 1400, // ✅ mais devagar (antes 200)
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),

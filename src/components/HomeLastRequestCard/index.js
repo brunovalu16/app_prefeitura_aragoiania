@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Alert } from "react-native";
+import { Alert, View } from "react-native";
 import { useTheme } from "styled-components/native";
 import {
   CardRow,
+  LeftBarSmall,
   SmallCard,
   SmallIconLeft,
   SmallInfo,
@@ -44,12 +45,20 @@ export default function HomeLastRequestCard({
   return (
     <CardRow>
       <SmallCard activeOpacity={0.9} onPress={onPress}>
+        <LeftBarSmall />
         <SmallIconLeft>
-          <Ionicons
-            name="document-text-outline"
-            size={18}
-            color={theme.colors.purple}
-          />
+          <View
+            style={{
+              backgroundColor: theme.colors.purple,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="document-text-outline" size={18} color="#fff" />
+          </View>
 
           <SmallInfo>
             <SmallTitle>{title}</SmallTitle>
